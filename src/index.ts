@@ -1,6 +1,12 @@
 
 export type Token = string
-export type ParseError = "END_OF_INPUT" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "F"
+export type ParseError = "END_OF_INPUT" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F"
+
+/**
+ * Represents the result of a parsing operation.
+ * Either contains a success status with the parsed value and remaining token,
+ * or an error status with a message.
+ */
 export type Parser<T> = {
     status: ParseError,
     message: string
@@ -11,20 +17,21 @@ export type Parser<T> = {
 }
 
 /**
- *  `解析函数`类型
+ * Type representing a parsing function that takes a token (input string) and returns a Parser result.
  */
 export type ParseF<T> = (token:Token) => Parser<T>
 
 /**
- * 有时候需要递归解析，所以需要支持函数版本的解析函数
+ * Type representing a parsing function that supports recursion.
+ * Can be either a direct ParseF or a function returning a ParseF (for recursive definitions).
  */
 export type ParseFunction<T> = ParseF<T> | {fn:() => ParseF<T>}
 
 /**
- *   按顺序尝试`解析函数`，返回首个成功的解析结果
- * @param x 
- * @param xs 
- * @returns 
+ * Tries parsing functions in sequence and returns the first successful result.
+ * @param x The first parsing function to try
+ * @param xs Additional parsing functions to try if the previous ones fail
+ * @returns A parser that returns the first successful result from the provided parsers
  */
 export let orP = <T>(x:ParseFunction<T>,... xs: ParseFunction<T>[]) => (token: Token):Parser<T> => {
     let xfn = typeof x == "function" ? x : x.fn()
@@ -42,9 +49,10 @@ export let orP = <T>(x:ParseFunction<T>,... xs: ParseFunction<T>[]) => (token: T
 }
 
 /**
- * 搜索指定字符串，匹配后从匹配位置继续解析后续内容
- * @param str 指定的字符串
- * @returns 指定字符串之前的slice
+ * Searches for a specified substring in the token. Returns the part before the substring
+ * and continues parsing from the position after the substring.
+ * @param str The substring to search for
+ * @returns A parser that returns the substring before the matched str, with remaining token starting after str
  */
 export let search = (str:Token) => (token:Token):Parser<Token> => {
     let i = token.indexOf(str)
@@ -62,17 +70,17 @@ export let search = (str:Token) => (token:Token):Parser<Token> => {
 }
 
 /**
- * 判断是否是单个空白字符
- * @param char 
- * @returns 
+ * Checks if a character is a whitespace character (space, tab, newline, carriage return).
+ * @param char The character to check
+ * @returns True if the character is a whitespace, false otherwise
  */
 export function isSpace(char: string) {
     return [" ","\t","\n","\r"].indexOf(char) != -1
 }
+
 /**
- * Parse a white symbol, eg space newline table 
- * 解析单个空白字符
- * @returns 
+ * Parses a single whitespace character (space, tab, newline, or carriage return).
+ * @returns A parser that returns the parsed whitespace character, with remaining token starting after it
  */
 export let space = (token:Token):Parser<string> => {
     let head = token[0] as string
@@ -90,11 +98,10 @@ export let space = (token:Token):Parser<string> => {
     }
 }
 
-// Remove the leading spaces.
-// It will definitely succeed regardless of whether there are any spaces or not, and it will never fail.
 /**
- * 解析并去除起始位置的空白字符
- * @returns 
+ * Parses and removes all leading whitespace characters from the token.
+ * Always succeeds regardless of whether whitespace exists.
+ * @returns A parser that returns undefined, with remaining token being the input without leading whitespace
  */
 export let spaces = (token:Token):Parser<void> => {
     return {
@@ -105,9 +112,9 @@ export let spaces = (token:Token):Parser<void> => {
 }
 
 /**
- * 重复解析直至失败，返回所有成功结果的列表
- * @param p 解析函数 ParseF
- * @returns 
+ * Applies a parser repeatedly until it fails, collecting all successful results into an array.
+ * @param p The parser to apply repeatedly
+ * @returns A parser that returns an tuple within all successful value of results, with remaining token where parsing stopped
  */
 export let many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> => {
     let r : T[] = []
@@ -127,8 +134,8 @@ export let many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> =
 }
 
 /**
- * 解析单个任意字符 
- * @returns 
+ * Parses the first character of the token. Fails if the token is empty.
+ * @returns A parser that returns the first character, with remaining token starting after it
  */
 export let anyChar = (token:Token):Parser<string> => {
     if(token.length == 0) return {
@@ -144,9 +151,9 @@ export let anyChar = (token:Token):Parser<string> => {
 }
 
 /**
- * 解析与参数完全匹配的字符串
- * @param str 要匹配的字符串
- * @returns 
+ * Parses a substring that exactly matches the specified string.
+ * @param str The string to match exactly
+ * @returns A parser that returns the matched string, with remaining token starting after it
  */
 export let equal = (str:Token) => (token:Token):Parser<string> => {
     let tobe = token.slice(0,str.length)
@@ -163,9 +170,9 @@ export let equal = (str:Token) => (token:Token):Parser<string> => {
     }
 }
 /**
- *  与 equal 相反
- * @param str 
- * @returns 
+ * Parses a single character that does NOT match the specified string.
+ * @param str The string to avoid matching
+ * @returns A parser that returns the parsed character, with remaining token starting after it
  */
 export let notEqual = (str:Token) => (token:Token):Parser<string> => {
     let tobe = token.slice(0,str.length)
@@ -182,6 +189,11 @@ export let notEqual = (str:Token) => (token:Token):Parser<string> => {
     }
 }
 
+/**
+ * Checks if a character is a numeric digit (0-9).
+ * @param char The character to check
+ * @returns True if the character is a digit, false otherwise
+ */
 export function isNumber(char:string) {
     let zero = '0'.charCodeAt(0)
     let nine = '9'.charCodeAt(0)
@@ -189,8 +201,8 @@ export function isNumber(char:string) {
     return code >= zero && code <= nine
 }
 /**
- * 解析一个JSON 数字
- * @returns 
+ * Parses a JSON-style number (integer or floating-point).
+ * @returns A parser that returns the parsed number as a Number, with remaining token starting after the number
  */
 export let numberF: ParseF<number> = token => {
     if(token.length == 0 ) return {
@@ -225,11 +237,11 @@ export let numberF: ParseF<number> = token => {
 }
 
 /**
- * 用onsole.log 打印 前100个token和解析器的结果
- * @param fn  解析器 ParseF
- * @param prefix  打印前缀
- * @param log_result 是否打印结果
- * @returns 
+ * Debugging parser that logs the first 100 characters of the token and optionally the parse result.
+ * @param fn The parser to wrap
+ * @param prefix Prefix for the log message
+ * @param log_result Whether to log the parse result
+ * @returns A wrapped parser that logs information before parsing
  */
 export let plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> => token => {
     console.log(prefix+token.slice(100))
@@ -241,11 +253,10 @@ export let plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> =>
 }
 
 /**
- * 当解析流程执行时，先尝试用 `parseFBefore` 定位一个参考点（该解析不消耗token），
- * 然后使用 `parseF` 解析从当前位置到该参考点之前的所有令牌
- * @param parseF  解析目标内容
- * @param parseFBefore  定位参考点
- * @returns 
+ * Parses content from the current position up to (but not including) the position where another parser succeeds.
+ * @param parseF The parser to apply to the content before the reference point
+ * @param parseFBefore The parser that identifies the reference point (its match is not included)
+ * @returns A parser that returns the result of parseF applied to the content before the reference point
  */
 export let before =  <a,b>(parseF:ParseFunction<a>,parseFBefore:ParseFunction<b>) : ParseFunction<a> => token => {
     let pf = typeof parseF == "function" ? parseF : parseF.fn()
@@ -257,8 +268,8 @@ export let before =  <a,b>(parseF:ParseFunction<a>,parseFBefore:ParseFunction<b>
     return pf(token_before)
 }
 /**
- * 直接跳转至字符串末尾
- * @returns 返回token
+ * Parses all remaining characters in the token, returning them as the result.
+ * @returns A parser that returns the entire remaining token, with an empty slice
  */
 export let breakToEnd : ParseF<Token> = token => {
     return {
@@ -269,8 +280,8 @@ export let breakToEnd : ParseF<Token> = token => {
 }
 
 /**
- * 验证当前位置是否为输入末尾
- * @returns 
+ * Verifies that the current position is at the end of the input (no remaining token).
+ * @returns A parser that returns undefined if at end of input, otherwise fails
  */
 export let endOfInput : ParseF<void> = token => {
     if(token.length == 0) return {
@@ -285,8 +296,10 @@ export let endOfInput : ParseF<void> = token => {
     }
 }
 /**
- *  基于前序解析结果动态转换解析流程
- * @returns 
+ * Monadic bind operation: chains parsers, using the result of the first parser to determine the second parser.
+ * @param p The first parser to run
+ * @param fn A function that takes the result of p and returns the second parser
+ * @returns A parser that runs p, then runs the parser from fn with p's result, returning its result
  */
 export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => token => {
     let pfn = typeof p == "function" ? p : p.fn()
@@ -296,8 +309,10 @@ export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => tok
 }
 
 /**
- * 射转换解析成功的结果值
- * @returns 
+ * Applies a transformation function to the result of a successful parse.
+ * @param p The parser whose result to transform
+ * @param fn The transformation function to apply to the parsed value
+ * @returns A parser that returns the transformed value on success
  */
 export let fmap = <a,b>(p:ParseFunction<a>,fn:(a:a)=>b):ParseF<b> => token => {
     let pfn = typeof p == "function" ? p : p.fn()
@@ -310,8 +325,9 @@ export let fmap = <a,b>(p:ParseFunction<a>,fn:(a:a)=>b):ParseF<b> => token => {
 }
 
 /**
- * 快速构建一个ParseF
- * @returns 
+ * Creates a parser that always succeeds with a specified value, without consuming any input.
+ * @param a The value to return
+ * @returns A parser that returns a and leaves the token unchanged
  */
 export let pure = <a>(a:a):ParseF<a> => token => {
     return {
@@ -322,9 +338,21 @@ export let pure = <a>(a:a):ParseF<a> => token => {
 }
 
 /**
- *  可选解析，确保解析不失败，若p解析器成功则返回p的结果，否则返回值为ndefiend的解析
- * @param p 
- * @returns 
+ * Converts a parser into an optional one: if the original parser fails, returns undefined without consuming input.
+ * @param p The parser to make optional
+ * @returns A parser that returns p's result on success, or undefined on failure
+ */
+export let fail = (message=""):ParseF<void> => token => {
+    return {
+        status: "FAIL",
+        message
+    }
+}
+
+/**
+ * Creates a parser that always fails with a specified message.
+ * @param message The failure message
+ * @returns A parser that fails with the given message
  */
 export let optional = <T>(p: ParseFunction<T>):ParseF<T|undefined> => token => {
     let pfn = typeof p == "function" ? p : p.fn()
@@ -338,13 +366,10 @@ export let optional = <T>(p: ParseFunction<T>):ParseF<T|undefined> => token => {
 }
 
 /**
- *  *组合多个解析函数，按右结合顺序执行解析并返回结果元组*
- * 解析流程：
- * - 采用右结合方式执行解析，从最右侧的解析函数开始
- * - 每个解析函数处理剩余的令牌，其结果按参数顺序存入元组
- * ## 示例：
- * - composeP (a, b)：先执行 b 解析，剩余令牌由 a 解析，返回 [a 的结果，b 的结果]
- * - composeP (a, b, c)：先执行 c 解析，剩余令牌由 b 解析，再剩余由 a 解析，返回 [a 的结果，b 的结果，c 的结果]
+ * Composes multiple parsers in right-associative order: runs parsers from right to left,
+ * passing the remaining token from each to the next, and collects results in input order.
+ * @param p Multiple parsers to compose
+ * @returns A parser that returns an array of results from the composed parsers
  */
 export function composeP<a,b>(a:ParseF<a>,b:ParseF<b>): ParseF<[a,b]>;
 export function composeP<a,b,c>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>): ParseF<[a,b,c]>;
@@ -371,11 +396,22 @@ export function composeP(...p: any[]) {
     }
 }
 
+/**
+ * Executes a parser with the given token and returns the parse result.
+ * Handles both direct ParseF and recursive ParseFunction types.
+ * @param p The parser to execute
+ * @param token The input token to parse
+ * @returns The result of the parsing operation
+ */
 export function parse<T>(p:ParseFunction<T>,token:Token):Parser<T>{
     let f = typeof p == "function" ? p : p.fn()
     return f(token)
 }
 
+/**
+ * Exception thrown when parsing fails in simpleParse.
+ * Contains an error code and message describing the failure.
+ */
 export class ParserException extends Error {
     public code: string
     constructor(code:string,message:string) {
@@ -384,12 +420,13 @@ export class ParserException extends Error {
     }
 }
 
-// 解析错误，抛异常
 /**
- *  简单解析，解析成功返回解析的值，否则抛异常 `ParserException`
- * @param p 解析函数
- * @param token 要解析的内容
- * @returns 
+ * Simplified parsing function that returns the parsed value on success,
+ * or throws a ParserException on failure.
+ * @param p The parser to execute
+ * @param token The input token to parse
+ * @returns The parsed value if successful
+ * @throws ParserException if parsing fails
  */
 export function simpleParse<T>(p:ParseFunction<T>,token:Token): T {
     let f = typeof p == "function" ? p : p.fn()

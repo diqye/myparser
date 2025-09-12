@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -126,6 +126,14 @@ test("before",()=>{
     expect(n_list_before).toEqual([1,2,3,4,0])
 })
 
+test("pure",()=>{
+    let a = simpleParse(pure("pure"),"")
+    expect(a).toBe("pure")
+})
+test("fail",()=>{
+    let p = parse(fail("error message"),"")
+    expect(p.status).toBe("FAIL")
+})
 test("json",()=>{
     // parse json doesn't support null
 
