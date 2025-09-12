@@ -1,6 +1,6 @@
 {
   "name": "@diqye/myparser",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "description": "A high-performance, lightweight, and flexible TypeScript library focused on parsing custom-format strings—whether for simple text extraction or precise parsing of complex formats, it delivers a concise and efficient solution.",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
