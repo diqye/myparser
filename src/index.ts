@@ -134,6 +134,86 @@ export let many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> =
 }
 
 /**
+ * A parser combinator that parses multiple occurrences of a value until another parser succeeds.
+ * 
+ * This function repeatedly applies the parse function (`parseF`) to extract values from the input
+ * token stream until the end parser (`end`) successfully matches. It collects all parsed values
+ * from `parseF` into an array and returns them once the end condition is met.
+ * 
+ * @template T The type of values produced by the main parser (parseF)
+ * @template U The type of value produced by the end parser
+ * @param parseF The main parser to apply repeatedly
+ * @param end The parser that signals the end condition when successful
+ * @returns A new parser that produces an array of T values
+ */
+export let manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => token => {
+    let value: T[] = []
+    while(true) {
+        let end_r = end(token)
+        if(end_r.status == "SUCCESS") return {
+            status: "SUCCESS",
+            value,
+            slice: token
+        }
+        let parse_r = parseF(token)
+        if(parse_r.status != "SUCCESS") return {
+            status: "SUCCESS",
+            value,
+            slice: token
+        }
+        token = parse_r.slice
+        value.push(parse_r.value)
+    }
+}
+
+/**
+ * A parser combinator that parses zero or more occurrences of a value separated by another parser.
+ * 
+ * This function parses values using the main parser (`parseF`) and separates them using the
+ * separator parser (`sep`). It collects all parsed values from `parseF` into an array, ignoring
+ * the separator values. Will return an empty array if no values are parsed.
+ * 
+ * @template T The type of values produced by the main parser (parseF)
+ * @template S The type of values produced by the separator parser
+ * @param parseF The main parser to apply for values
+ * @param sep The parser to apply for separators between values
+ * @returns A new parser that produces an array of T values
+ */
+export let sepBy = <T, S>(parseF: ParseF<T>, sep: ParseF<S>): ParseF<T[]> => token => {
+    const values: T[] = []
+    let firstResult = parseF(token)
+    if (firstResult.status !== "SUCCESS") return {
+        status: "SUCCESS",
+        value: values,
+        slice: token
+    }
+    
+    values.push(firstResult.value);
+    let currentToken = firstResult.slice;
+    
+    while (true) {
+        const sepResult = sep(currentToken)
+        if (sepResult.status !== "SUCCESS") return {
+            status: "SUCCESS",
+            value: values,
+            slice: currentToken
+        }
+        
+        currentToken = sepResult.slice
+        
+        const nextResult = parseF(currentToken)
+        if (nextResult.status !== "SUCCESS") return {
+            status: "SUCCESS",
+            value: values,
+            slice: currentToken
+        }
+        
+        values.push(nextResult.value)
+        currentToken = nextResult.slice
+    }
+}
+
+/**
  * Parses the first character of the token. Fails if the token is empty.
  * @returns A parser that returns the first character, with remaining token starting after it
  */

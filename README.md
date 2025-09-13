@@ -4,7 +4,7 @@ A high-performance, lightweight, and flexible TypeScript library focused on pars
 ## Features
 
 - **Pure function**: Every parsing operation is a simple pure function with no side effects. Parsing logic is predictable, easy to test, and supports functional composition.
-- **Zero dependencies**: Pure TypeScript implementation with no third-party dependencies. It is lightweight (less than 3.3KB after packaging), avoiding dependency conflicts and version compatibility issues.
+- **Zero dependencies**: Pure TypeScript implementation with no third-party dependencies. It is lightweight (less than 4KB after packaging), avoiding dependency conflicts and version compatibility issues.
 - **Cross-platform**: Only uses standard functions on String, enabling seamless operation in all JavaScript runtimes such as browsers, Node.js, and Bun, without the need for environment-specific adaptations.
 - **Compose**: Rich parser composition capabilities (e.g., composeP for chaining parsing steps, orP for multiple selection branches, before for parsing within fixed segments). Parsing logic can be split into fine-grained functions to maximize reusability.
 - **Type safe**: All core functions are strictly constrained by TypeScript generics for input and output types. Parsing results have automatically derived types, avoiding runtime type errors, and IDEs can provide complete type hints.
@@ -15,15 +15,20 @@ A high-performance, lightweight, and flexible TypeScript library focused on pars
 
 ### Installation
 
-通过`npm` 或 `bun` 安装
+bun
 ```zsh
 bun add @diqye/myparser
 ```
-
+npm
 ```zsh
 npm install --save @diqye/myparser
 ```
-
+## Parse numbers
+```typescript
+let str = "123,8,9,76554,66,0,98,88"
+let numbers = simpleParse(sepBy(numberF,equal(",")),str)
+expect(numbers).toEqual([123,8,9,76554,66,0,98,88])
+```
 ## Parse numbers in the format of n 1
 
 ```typescript
@@ -62,6 +67,8 @@ src/index.test.ts:
 ✓ bind       [0.07ms] Dynamically chain parsers using results from previous steps
 ✓ fmap       [0.02ms] Transform values from successful parses
 ✓ many       [0.07ms] Repeat a parser until failure, collecting all results
+✓ manyTill   [0.11ms] A parser combinator
+✓ sepBy      [0.08ms] A parser combinator
 ✓ orP        [0.08ms] Try parsers sequentially and return the first success
 ✓ equal      [0.02ms] Parse a string matching the exact input
 ✓ breakToEnd          Capture all remaining input from current position

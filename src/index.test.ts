@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -134,6 +134,17 @@ test("fail",()=>{
     let p = parse(fail("error message"),"")
     expect(p.status).toBe("FAIL")
 })
+test("manyTill",()=>{
+    let str = "123,8,9,76554,66,0,98,88"
+    let number_f = fmap(composeP(equal(","),numberF),a=>a[1])
+    let numbers = simpleParse(manyTill(number_f,equal("0")),str)
+    expect(numbers).toEqual([123,8,9,76554,66])
+})
+test("sepBy",()=>{
+    let str = "123,8,9,76554,66,0,98,88"
+    let numbers = simpleParse(sepBy(numberF,equal(",")),str)
+    expect(numbers).toEqual([123,8,9,76554,66,0,98,88])
+})
 test("json",()=>{
     // parse json doesn't support null
 
@@ -142,7 +153,7 @@ test("json",()=>{
     let json_string = `"he'\\\"llo"`
     let json_true = "true"
     let josn_array = "[1,2, true,\"3\"]" as const
-    let josn_obj = `{"key":1,"arr":["a",true,1],"obj":{"a":"a"}}`
+    let josn_obj = `{\n"key":1,"arr":["a",true,\n1],"obj":{"a":"a"}}`
 
     let parseBool : ParseF<boolean> = fmap(
         orP(equal("true"),equal("false")),
@@ -184,17 +195,10 @@ test("json",()=>{
                 equal("]"),
                 spaces,
                 // 最后一项数据
-                optional(composeP(all_p,spaces)),
-                many(composeP(equal(","),spaces,all_p,spaces)),
+                sepBy(fmap(composeP(spaces,all_p,spaces),a=>a[1]),equal(",")),
                 equal("[")
             ),
-            ([_1,_2,last,list]) => {
-                let r = list.map(a=>a[2])
-                if(last) {
-                    r.push(last[0])
-                }
-                return r
-            }
+            ([,,list]) => list
         )
     }
     
@@ -213,22 +217,17 @@ test("json",()=>{
             composeP(
                 equal("}"),
                 spaces,
-                optional(pairs),
-                many(composeP(
-                    equal(","),
-                    spaces,
-                    pairs
-                )),
+                sepBy(
+                    fmap(composeP(pairs,spaces),a=>a[0]),
+                    equal(",")
+                ),
                 equal("{"),
                 spaces
             ),
-            ([_1,_2,last,list]) => {
+            ([,,list]) => {
                 let obj = {} as any
-                for(let [,,pair] of list) {
-                    obj[pair[0]] = pair[1]
-                }
-                if(last) {
-                    obj[last[0]] = last[1]
+                for(let [key,val] of list) {
+                    obj[key] = val
                 }
                 return obj
             }
