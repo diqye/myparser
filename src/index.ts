@@ -33,13 +33,11 @@ export type ParseFunction<T> = ParseF<T> | {fn:() => ParseF<T>}
  * @param xs Additional parsing functions to try if the previous ones fail
  * @returns A parser that returns the first successful result from the provided parsers
  */
-export let orP = <T>(x:ParseFunction<T>,... xs: ParseFunction<T>[]) => (token: Token):Parser<T> => {
-    let xfn = typeof x == "function" ? x : x.fn()
-    let a = xfn(token)
+export let orP = <T>(x:ParseF<T>,... xs: ParseF<T>[]) => (token: Token):Parser<T> => {
+    let a = x(token)
     if(a.status == "SUCCESS") return a
     for(let f of xs){
-        let fn = typeof f == "function" ? f : f.fn()
-        let a = fn(token)
+        let a = f(token)
         if(a.status != "SUCCESS") {
             continue
         }
@@ -240,7 +238,7 @@ export let equal = (str:Token) => (token:Token):Parser<string> => {
     if(tobe != str) {
         return {
             status: "EQUAL_FAIL",
-            message: `Expect ${str} actual ${tobe} token limit 100=${token.slice(0,100)}`
+            message: `Expect "${str}" actual "${tobe}" token limit 100=${token.slice(0,100)}`
         }
     }
     return {
@@ -338,14 +336,12 @@ export let plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> =>
  * @param parseFBefore The parser that identifies the reference point (its match is not included)
  * @returns A parser that returns the result of parseF applied to the content before the reference point
  */
-export let before =  <a,b>(parseF:ParseFunction<a>,parseFBefore:ParseFunction<b>) : ParseFunction<a> => token => {
-    let pf = typeof parseF == "function" ? parseF : parseF.fn()
-    let pf_before = typeof parseFBefore == "function" ? parseFBefore : parseFBefore.fn()
-    let value_before = pf_before(token)
+export let before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a> => token => {
+    let value_before = parseFBefore(token)
     if(value_before.status != "SUCCESS") return value_before
     let offset = token.length - value_before.slice.length
     let token_before = token.slice(0,offset)
-    return pf(token_before)
+    return parseF(token_before)
 }
 /**
  * Parses all remaining characters in the token, returning them as the result.
@@ -434,9 +430,8 @@ export let fail = (message=""):ParseF<void> => token => {
  * @param message The failure message
  * @returns A parser that fails with the given message
  */
-export let optional = <T>(p: ParseFunction<T>):ParseF<T|undefined> => token => {
-    let pfn = typeof p == "function" ? p : p.fn()
-    let a = pfn(token)
+export let optional = <T>(p: ParseF<T>):ParseF<T|undefined> => token => {
+    let a = p(token)
     if(a.status != "SUCCESS") return {
         status: "SUCCESS",
         value: undefined,

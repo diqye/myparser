@@ -8,6 +8,7 @@ console.log("Building dist/esm")
 await Bun.build({
     outdir: "dist/esm",
     format: "esm",
+    sourcemap: true,
     packages: "bundle",
     minify: true,
     entrypoints: ["src/index.ts"]

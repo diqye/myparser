@@ -144,117 +144,105 @@ test("sepBy",()=>{
     let str = "123,8,9,76554,66,0,98,88"
     let numbers = simpleParse(sepBy(numberF,equal(",")),str)
     expect(numbers).toEqual([123,8,9,76554,66,0,98,88])
+    let numbers2 = simpleParse(sepBy(numberF,equal(",")),"")
+    expect(numbers2).toBeEmpty()
 })
+export type ObjectValue =  {
+    [k in string]: Value
+}
+export type Value = null
+    | undefined
+    | string
+    | boolean
+    | number
+    | ObjectValue
+    | Value []
+export function parseJson(token:string) : Value {
+    let null_f = fmap(equal("null"),a=>null)
+    let undefined_f = fmap(equal("undefined"),a=>undefined)
+    let boolean_f = fmap(orP(equal("true"),equal("false")),a=>a == "true")
+    let string_f_list = composeP(
+        equal('"'),
+        manyTill(
+            orP(fmap(equal('\\"'),a=>'"'),anyChar),
+            equal('"')
+        ),
+        equal('"')
+    )
+    let string_f = fmap(string_f_list,([,xs])=>xs.join(""))
+    let list_f_list = composeP(
+        equal("]"),
+        spaces,
+        sepBy(
+            fmap({fn:()=>composeP(spaces,value_f,spaces)},x=>x[1]),
+            equal(",")
+        ),
+        spaces,
+        equal("[")
+    )
+    let list_f = fmap(list_f_list,x=>x[2])
+    let pair_f = fmap({
+        fn:()=>composeP(
+            value_f,
+            spaces,
+            equal(":"),
+            spaces,
+            string_f
+        )
+    },a=>[a[4],a[0]] as const)
+    let object_f_list = composeP(
+        equal("}"),
+        spaces,
+        sepBy(
+            pair_f,
+            equal(",")
+        ),
+        spaces,
+        equal("{")
+    )
+    let object_f = fmap(object_f_list,a=>{
+        let obj : ObjectValue = {}
+        let pairs = a[2]
+        for(let pair of pairs) {
+            obj[pair[0]] = pair[1]
+        }
+        return obj
+    })
+
+    let value_f: ParseF<Value> = orP<Value>(null_f,undefined_f,boolean_f,numberF,string_f,list_f,object_f)
+    return simpleParse(
+        fmap(
+            composeP(endOfInput,spaces,value_f,spaces),
+            x=>x[2]
+        ),
+        token
+    )
+}
 test("json",()=>{
     // parse json doesn't support null
 
     let json_integer = "123457890"
     let json_float = "0.88787"
-    let json_string = `"he'\\\"llo"`
+    let json_string = `"he'\\"llo"`
     let json_true = "true"
     let josn_array = "[1,2, true,\"3\"]" as const
     let josn_obj = `{\n"key":1,"arr":["a",true,\n1],"obj":{"a":"a"}}`
 
-    let parseBool : ParseF<boolean> = fmap(
-        orP(equal("true"),equal("false")),
-        a=> a == "true"
-    )
-
-    let pb = parse(parseBool,json_true)
-    if(pb.status != "SUCCESS") return expect().fail("bool failed")
-    expect(pb.value).toBe(true)
+    expect(parseJson(json_true)).toBe(true)
     
-    let parseString: ParseF<string> = fmap(
-        composeP(
-            equal("\""),
-            many(orP(equal("\\\""),notEqual("\""))),
-            equal("\"")
-        ),
-        xs => xs[1].join("")
-    )
+    expect(parseJson(json_string)).toBe("he'\"llo")
 
-    let ps = parse(parseString,json_string)
-    if(ps.status != "SUCCESS") return expect().fail("string failed")
-    expect(ps.value).toBe("he'\\\"llo")
+    expect(parseJson(json_integer)).toBe(123457890)
+    expect(parseJson(json_float)).toBe(0.88787)
 
-    let pn = parse(numberF,json_float)
-    if(pn.status != "SUCCESS") return expect().fail("number failed")
-    expect(pn.value).toBe(0.88787)
-    pn = parse(numberF,json_integer)
-    if(pn.status != "SUCCESS") return expect().fail("number failed")
-    expect(pn.value).toBe(123457890)
+    expect(parseJson(josn_array)).toEqual([ 1, 2, true, "3" ])
 
-    type Basic = boolean | string | number
-    let basic_p = orP<Basic>(parseBool,parseString,numberF)
+    expect(parseJson("[ ]")).toBeEmpty()
 
-    type Value = Basic | Object | Value []
-    let parseList = (): ParseF<Value[]> => {
-        let all_p = orP<Value>(basic_p,{fn: parseList},{fn:parseObject})
-        return fmap(
-            composeP(
-                equal("]"),
-                spaces,
-                // 最后一项数据
-                sepBy(fmap(composeP(spaces,all_p,spaces),a=>a[1]),equal(",")),
-                equal("[")
-            ),
-            ([,,list]) => list
-        )
-    }
-    
-    // Object
-    let parseObject = ():ParseF<Object> =>  {
-        let all_p = orP<Value>(basic_p,parseList(),{fn:parseObject})
-        let pairs = fmap(composeP(
-            all_p,
-            spaces,
-            equal(":"),
-            spaces,
-            parseString,
-            spaces,
-        ),x=> [x[4],x[0]] as const)
-        return fmap(
-            composeP(
-                equal("}"),
-                spaces,
-                sepBy(
-                    fmap(composeP(pairs,spaces),a=>a[0]),
-                    equal(",")
-                ),
-                equal("{"),
-                spaces
-            ),
-            ([,,list]) => {
-                let obj = {} as any
-                for(let [key,val] of list) {
-                    obj[key] = val
-                }
-                return obj
-            }
-        )
-    }
+    expect(parseJson("[true,22,[4,false,\"----\",[],[8,[]]]  ]")).toBeArray()
 
-    let pa = parse({fn:parseList},josn_array)
-    if(pa.status != "SUCCESS") return expect().fail("List failed")
-    expect(pa.value).toEqual([ 1, 2, true, "3" ])
+    expect(parseJson(josn_obj)).toEqual(JSON.parse(josn_obj))
 
-    pa = parse({fn:parseList},"[  ]")
-    if(pa.status != "SUCCESS") return expect().fail("empty list failed")
-    expect(pa.value).toBeEmpty()
-
-    // 嵌套
-    pa = parse({fn:parseList},"[true,22,[4,false,\"----\",[],[8,[]]]  ]")
-    if(pa.status != "SUCCESS") return expect().fail("empty list failed")
-    expect(pa.value).toBeArray()
-
-
-    let obj = parse(parseObject(),josn_obj)
-    if(obj.status != "SUCCESS") return expect().fail("Object failed")
-    expect(obj.value).toEqual(JSON.parse(josn_obj))
-
-    let josn_p = orP<Value>(parseBool,parseString,numberF,parseList(),parseObject())
-    let v = simpleParse(josn_p,"11")
-    expect(v).toBe(11)
 })
 
 test("simple",()=>{
