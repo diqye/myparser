@@ -74,7 +74,7 @@ src/index.test.ts:
 ✓ breakToEnd          Capture all remaining input from current position
 ✓ endOfInput [0.04ms] Verify parsing has reached the end of input
 ✓ before              Parse content occurring before a specified marker
-✓ json       [0.93ms] Parse JSON-formatted content
+✓ json test  [0.93ms] Parse JSON-formatted content
 ✓ simple     [0.13ms] Basic parsing workflow demonstration
 ✓ optional            Optionally parse content (returns undefined on failure)
 ✓ pure                Wrap a value in a successful parser result

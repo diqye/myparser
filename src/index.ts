@@ -218,7 +218,7 @@ export let sepBy = <T, S>(parseF: ParseF<T>, sep: ParseF<S>): ParseF<T[]> => tok
 export let anyChar = (token:Token):Parser<string> => {
     if(token.length == 0) return {
         status: "END_OF_INPUT",
-        message: ""
+        message: "Expect any char actual end of input"
     }
 
     return {
@@ -257,7 +257,7 @@ export let notEqual = (str:Token) => (token:Token):Parser<string> => {
     if(tobe == str) {
         return {
             status: "EQUAL_FAIL",
-            message: `Expect not {str} actual ${tobe}`
+            message: `Expect not "{str}" actual "${tobe}"`
         }
     }
     return {
@@ -285,12 +285,12 @@ export function isNumber(char:string) {
 export let numberF: ParseF<number> = token => {
     if(token.length == 0 ) return {
         status: "END_OF_INPUT",
-        message: ""
+        message: "Expect number actual end of input"
     }
     let head = token.charAt(0)
     if(isNumber(head) == false) return {
         status: "NOT_NUMBER",
-        message: ""
+        message: "Not number:" + head
     }
     let have_dot = false
     let i = 1
@@ -368,7 +368,7 @@ export let endOfInput : ParseF<void> = token => {
 
     return {
         status: "F",
-        message: "token.length = " + token.length
+        message: "Expected end of token, but there is still content remaining. First 100 characters of the content: " + token.slice(0, 100)
     }
 }
 /**

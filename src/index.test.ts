@@ -218,7 +218,7 @@ export function parseJson(token:string) : Value {
         token
     )
 }
-test("json",()=>{
+test("json test",()=>{
     // parse json doesn't support null
 
     let json_integer = "123457890"

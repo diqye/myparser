@@ -8,7 +8,7 @@
   "bugs": {
     "url": "https://github.com/diqye/myparser/issues"
   },
-  "version": "0.2.1",
+  "version": "0.2.3",
   "description": "A high-performance, lightweight, and flexible TypeScript library focused on parsing custom-format strings—whether for simple text extraction or precise parsing of complex formats, it delivers a concise and efficient solution.",
   "module": "./dist/esm/index.js",
   "types": "./dist/types/index.d.ts",
