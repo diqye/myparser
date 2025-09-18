@@ -23,11 +23,52 @@ npm
 ```zsh
 npm install --save @diqye/myparser
 ```
-## Parse numbers
+## Parse xml
 ```typescript
-let str = "123,8,9,76554,66,0,98,88"
-let numbers = simpleParse(sepBy(numberF,equal(",")),str)
-expect(numbers).toEqual([123,8,9,76554,66,0,98,88])
+test("pipeO",()=>{
+    let xml = `
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    `
+    let values = simpleParse(many(    // many function can keep parsing until failure, assemble results into a list
+        pipeO(
+            ["",spaces],              // remove whitespace
+            ["",equal("<value>")],    // exact match <value>
+            ["",spaces],              // remove whitespace
+            ["",equal("<foo>")],      // exact match <foo>
+            ["",spaces],              // remove whitespace 
+            ["foo",search("</foo>")], // search </foo> and assign skipped content to foo property of result object
+            ["",spaces],              // remove whitespace 
+            ["",equal("<bar>")],      // eg
+            ["",spaces],              // eg
+            ["bar",search("</bar>")], // search </bar> and assign skipped content to bar property of result object
+            ["",spaces], 
+            ["",equal("</value>")],
+        )
+    ),xml)
+    expect(values).toEqual([
+        {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }
+    ])
+})
 ```
 ## Parse numbers in the format of n 1
 
@@ -55,7 +96,7 @@ test("before",()=>{
 ```
 
 ## API
-For detailed API functionality, refer to [./index.tes.ts](src/index.test.ts)
+For detailed API functionality, refer to [./index.test.ts](src/index.test.ts)
 
 ```zsh
 src/index.test.ts:
@@ -79,4 +120,7 @@ src/index.test.ts:
 ✓ optional            Optionally parse content (returns undefined on failure)
 ✓ pure                Wrap a value in a successful parser result
 ✓ fail                Create a parser that always fails
+✓ pipeP      [0.05ms] Combine parsers in sequence (left-associative) and return a result tuple
+✓ lookup     [0.03ms] `looking at` the token without consuming it
+✓ pipeO      [1.09ms] like `pipeP` but collects results with objec
 ```

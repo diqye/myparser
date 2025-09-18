@@ -441,6 +441,25 @@ export let optional = <T>(p: ParseF<T>):ParseF<T|undefined> => token => {
 }
 
 /**
+ * Creates a parser that attempts to parse the given token using `parseF`.
+ * 
+ * If parsing succeeds, it returns the result but overrides the `slice` field
+ * with the original `token`, effectively "looking at" the token without consuming it.
+ * If parsing fails, the failure result is returned unchanged.
+ *
+ * @param parseF - A parser function that takes a token and returns a parse result.
+ * @returns A parser function that parses without consuming the token.
+ */
+export let lookup = <T>(parseF:ParseF<T>):ParseF<T> => token => {
+    let parser = parseF(token)
+    if(parser.status != "SUCCESS") return parser
+    return {
+        ...parser,
+        slice: token
+    }
+}
+
+/**
  * Composes multiple parsers in right-associative order: runs parsers from right to left,
  * passing the remaining token from each to the next, and collects results in input order.
  * @param p Multiple parsers to compose
@@ -466,6 +485,619 @@ export function composeP(...p: any[]) {
         return {
             status: "SUCCESS",
             value: r.reverse(),
+            slice: token
+        } satisfies Parser<any>
+    }
+}
+/**
+ * Composes multiple parsers in left-associative order: runs parsers from left to right,
+ * passing the remaining token from each to the next, and collects results in input order.
+ * @param p Multiple parsers to compose
+ * @returns A parser that returns an array of results from the composed parsers
+ */
+export function pipeP<a,b>(a:ParseF<a>,b:ParseF<b>): ParseF<[a,b]>;
+export function pipeP<a,b,c>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>): ParseF<[a,b,c]>;
+export function pipeP<a,b,c,d>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>): ParseF<[a,b,c,d]>;
+export function pipeP<a,b,c,d,e>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>): ParseF<[a,b,c,d,e]>;
+export function pipeP<a,b,c,d,e,f>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>): ParseF<[a,b,c,d,e,f]>;
+export function pipeP<a,b,c,d,e,f,g>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>,g:ParseF<g>): ParseF<[a,b,c,d,e,f,g]>;
+export function pipeP<a,b,c,d,e,f,g,h>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>,g:ParseF<g>,h:ParseF<h>): ParseF<[a,b,c,d,e,f,g,h]>;
+export function pipeP<a,b,c,d,e,f,g,h,i>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>,g:ParseF<g>,h:ParseF<h>,i:ParseF<i>): ParseF<[a,b,c,d,e,f,g,h,i]>;
+export function pipeP(...p: any[]) {
+    return (token:Token):any => {
+        let r = []
+        for(let f of p) {
+            let a = f(token)
+            if(a.status != "SUCCESS") return a
+            token = a.slice
+            r.push(a.value)
+        }
+        return {
+            status: "SUCCESS",
+            value: r,
+            slice: token
+        } satisfies Parser<any>
+    }
+}
+
+/**
+ * Composes multiple parsers in left-associative order: runs parsers from left to right
+ * passing the remaining token from each to the next, and collects results with object.
+ * ### Example:
+ * ```ts
+ *  let f = pipeO(["a",anyChar],["",anyChar],["c",numberF])
+ *  let r = simpleParse(f,"ab2cd")
+ *  expect(r).toEqual({
+ *      a: "a",
+ *      c: 2
+ *  })
+ * ```
+ */
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>]
+): ParseF<{
+    [key in Exclude<ak|bk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv,
+    mk extends string, mv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>],
+    m: [mk,ParseF<mv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk|mk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        key extends mk ? mv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv,
+    mk extends string, mv,
+    nk extends string, nv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>],
+    m: [mk,ParseF<mv>],
+    n: [nk,ParseF<nv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk|mk|nk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        key extends mk ? mv :
+        key extends nk ? nv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv,
+    mk extends string, mv,
+    nk extends string, nv,
+    ok extends string, ov
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>],
+    m: [mk,ParseF<mv>],
+    n: [nk,ParseF<nv>],
+    o: [ok,ParseF<ov>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk|mk|nk|ok, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        key extends mk ? mv :
+        key extends nk ? nv :
+        key extends ok ? ov :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv,
+    mk extends string, mv,
+    nk extends string, nv,
+    ok extends string, ov,
+    pk extends string, pv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>],
+    m: [mk,ParseF<mv>],
+    n: [nk,ParseF<nv>],
+    o: [ok,ParseF<ov>],
+    p: [pk,ParseF<pv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk|mk|nk|ok|pk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        key extends mk ? mv :
+        key extends nk ? nv :
+        key extends ok ? ov :
+        key extends pk ? pv :
+        never
+}>
+export function pipeO<
+    ak extends string, av,
+    bk extends string, bv,
+    ck extends string, cv,
+    dk extends string, dv,
+    ek extends string, ev,
+    fk extends string, fv,
+    gk extends string, gv,
+    hk extends string, hv,
+    ik extends string, iv,
+    jk extends string, jv,
+    kk extends string, kv,
+    lk extends string, lv,
+    mk extends string, mv,
+    nk extends string, nv,
+    ok extends string, ov,
+    pk extends string, pv,
+    qk extends string, qv
+>(
+    a: [ak,ParseF<av>],
+    b: [bk,ParseF<bv>],
+    c: [ck,ParseF<cv>],
+    d: [dk,ParseF<dv>],
+    e: [ek,ParseF<ev>],
+    f: [fk,ParseF<fv>],
+    g: [gk,ParseF<gv>],
+    h: [hk,ParseF<hv>],
+    i: [ik,ParseF<iv>],
+    j: [jk,ParseF<jv>],
+    k: [kk,ParseF<kv>],
+    l: [lk,ParseF<lv>],
+    m: [mk,ParseF<mv>],
+    n: [nk,ParseF<nv>],
+    o: [ok,ParseF<ov>],
+    p: [pk,ParseF<pv>],
+    q: [qk,ParseF<qv>]
+): ParseF<{
+    [key in Exclude<ak|bk|ck|dk|ek|fk|gk|hk|ik|jk|kk|lk|mk|nk|ok|pk|qk, "">]:
+        key extends ak ? av :
+        key extends bk ? bv :
+        key extends ck ? cv :
+        key extends dk ? dv :
+        key extends ek ? ev :
+        key extends fk ? fv :
+        key extends gk ? gv :
+        key extends hk ? hv :
+        key extends ik ? iv :
+        key extends jk ? jv :
+        key extends kk ? kv :
+        key extends lk ? lv :
+        key extends mk ? mv :
+        key extends nk ? nv :
+        key extends ok ? ov :
+        key extends pk ? pv :
+        key extends qk ? qv :
+        never
+}>
+export function pipeO(...ps:[string,ParseF<any>][]) : ParseF<any> {
+    return (token:Token):any => {
+        let r = {} as any
+        for(let [key,f] of ps) {
+            let a = f(token)
+            if(a.status != "SUCCESS") return a
+            token = a.slice
+            if(key == "") continue
+            r[key] = a.value
+        }
+        return {
+            status: "SUCCESS",
+            value: r,
             slice: token
         } satisfies Parser<any>
     }

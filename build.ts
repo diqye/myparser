@@ -10,7 +10,7 @@ await Bun.build({
     format: "esm",
     sourcemap: true,
     packages: "bundle",
-    // minify: true,
+    minify: true,
     entrypoints: ["src/index.ts"]
 })
 

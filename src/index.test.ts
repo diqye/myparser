@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -52,12 +52,29 @@ test("search",()=>{
 
 test("composeP",()=>{
     let a = parse(composeP(anyChar,anyChar,search("abc")),"123abc321")
-    if(a.status != "SUCCESS") return expect().fail("parse anyChar failed")
+    if(a.status != "SUCCESS") return expect().fail("composeP failed")
     let [v1,v2,v3] = a.value
     expect(v1).toBe("2")
     expect(v2).toBe("3")
     expect(v3).toBe("123")
     expect(a.slice).toBe("1")
+})
+
+test("pipeP",()=>{
+    let a = parse(pipeP(search("abc"),anyChar,anyChar),"123abc321")
+    if(a.status != "SUCCESS") return expect().fail("pipeP failed")
+    let [v1,v2,v3] = a.value
+    expect(v1).toBe("123")
+    expect(v2).toBe("3")
+    expect(v3).toBe("2")
+    expect(a.slice).toBe("1")
+})
+
+test("lookup",()=>{
+    let r = parse(lookup(anyChar),"abc")
+    if(r.status != "SUCCESS") return expect().fail()
+    expect(r.value).toBe("a")
+    expect(r.slice).toBe("abc")
 })
 
 test("bind",()=>{
@@ -146,6 +163,56 @@ test("sepBy",()=>{
     expect(numbers).toEqual([123,8,9,76554,66,0,98,88])
     let numbers2 = simpleParse(sepBy(numberF,equal(",")),"")
     expect(numbers2).toBeEmpty()
+})
+test("pipeO",()=>{
+    let f = pipeO(["a",anyChar],["",anyChar],["c",numberF])
+    let r = simpleParse(f,"ab2cd")
+    expect(r).toEqual({
+        a: "a",
+        c: 2
+    })
+    let xml = `
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    `
+    let values = simpleParse(many(    // many function can keep parsing until failure, assemble results into a list
+        pipeO(
+            ["",spaces],              // remove whitespace
+            ["",equal("<value>")],    // exact match <value>
+            ["",spaces],              // remove whitespace
+            ["",equal("<foo>")],      // exact match <foo>
+            ["",spaces],              // remove whitespace 
+            ["foo",search("</foo>")], // search </foo> and assign skipped content to foo property of result object
+            ["",spaces],              // remove whitespace 
+            ["",equal("<bar>")],      // eg
+            ["",spaces],              // eg
+            ["bar",search("</bar>")], // search </bar> and assign skipped content to bar property of result object
+            ["",spaces], 
+            ["",equal("</value>")],
+        )
+    ),xml)
+    expect(values).toEqual([
+        {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }
+    ])
 })
 export type ObjectValue =  {
     [k in string]: Value
