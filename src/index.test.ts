@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -106,6 +106,22 @@ test("many",()=>{
     expect(a.slice).toBe("123")
 })
 
+test("selectMinConsumingF",()=>{
+    let str=`
+    12132
+    end1
+    12312312
+    end2
+    werwerw
+    end4
+    `
+
+    let vs = simpleParse(many(fmap(selectMinConsumingF(
+        [search("end1"),search("end2")]),a=>a.trim())),str)
+    expect(vs).toEqual([ "12132", "12312312" ])
+
+})
+
 test("orP",()=>{
     let a = simpleParse(orP(equal("hello"),search("o")),"hello 0000oooo")
     expect(a).toBe("hello")
@@ -125,6 +141,12 @@ test("endOfInput",()=>{
     expect(a).toBeUndefined()
 })
 test("before",()=>{
+    let a = before(anyChar,search("c"))("aacdd")
+    expect(a).toEqual({
+        status: "SUCCESS",
+        value: "a",
+        slice: "dd",
+    })
     let str =`
     n 1 n 2 
     n 3 n 4

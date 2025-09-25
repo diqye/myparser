@@ -100,27 +100,29 @@ For detailed API functionality, refer to [./index.test.ts](src/index.test.ts)
 
 ```zsh
 src/index.test.ts:
-✓ space               Parse a single whitespace character
+✓ space               Parse a single whitespace character          
 ✓ spaces     [0.02ms] Parse and remove leading whitespace characters
-✓ anychar    [0.03ms] Parse any single character
+✓ anychar    [0.03ms] Parse any single character                   
 ✓ search     [0.06ms] Search for a string and continue parsing after the match
 ✓ composeP   [0.05ms] Combine parsers in sequence (right-associative) and return a result tuple
 ✓ bind       [0.07ms] Dynamically chain parsers using results from previous steps
-✓ fmap       [0.02ms] Transform values from successful parses
+✓ fmap       [0.02ms] Transform values from successful parses      
 ✓ many       [0.07ms] Repeat a parser until failure, collecting all results
-✓ manyTill   [0.11ms] A parser combinator
-✓ sepBy      [0.08ms] A parser combinator
+✓ manyTill   [0.11ms] A parser combinator                          
+✓ sepBy      [0.08ms] A parser combinator                          
 ✓ orP        [0.08ms] Try parsers sequentially and return the first success
-✓ equal      [0.02ms] Parse a string matching the exact input
+✓ equal      [0.02ms] Parse a string matching the exact input      
 ✓ breakToEnd          Capture all remaining input from current position
-✓ endOfInput [0.04ms] Verify parsing has reached the end of input
+✓ endOfInput [0.04ms] Verify parsing has reached the end of input  
 ✓ before              Parse content occurring before a specified marker
-✓ json test  [0.93ms] Parse JSON-formatted content
-✓ simple     [0.13ms] Basic parsing workflow demonstration
+✓ json test  [0.93ms] Parse JSON-formatted content                 
+✓ simple     [0.13ms] Basic parsing workflow demonstration         
 ✓ optional            Optionally parse content (returns undefined on failure)
-✓ pure                Wrap a value in a successful parser result
-✓ fail                Create a parser that always fails
+✓ pure                Wrap a value in a successful parser result   
+✓ fail                Create a parser that always fails            
 ✓ pipeP      [0.05ms] Combine parsers in sequence (left-associative) and return a result tuple
-✓ lookup     [0.03ms] `looking at` the token without consuming it
-✓ pipeO      [1.09ms] like `pipeP` but collects results with objec
+✓ lookup     [0.03ms] `looking at` the token without consuming it  
+✓ pipeO      [1.09ms] like `pipeP` but collects results with objec 
+                                             
+✓ selectMinConsumingF Selects the parser result that consumes the least tokens
 ```

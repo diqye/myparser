@@ -1,6 +1,6 @@
 
 export type Token = string
-export type ParseError = "END_OF_INPUT" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F"
+export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F"
 
 /**
  * Represents the result of a parsing operation.
@@ -44,6 +44,41 @@ export let orP = <T>(x:ParseF<T>,... xs: ParseF<T>[]) => (token: Token):Parser<T
         return a
     }
     return a
+}
+
+/**
+ * Selects the parser result that consumes the least tokens
+ * 
+ * Takes an array of parsers, applies each to the input token, and returns the optimal result based on:
+ * - Preferring successful parsing results ("SUCCESS" status)
+ * - Among successful results, choosing the one with the smallest token consumption (shortest slice length)
+ * - If all parsers fail, returns the last failed result
+ * 
+ * @template T - The type of data returned by the parsers
+ * @param {ParseF<T>[]} parsers - Array of parser functions to evaluate
+ * @returns {ParseF<T>} A parser function that applies the selection logic and returns the optimal result
+ */
+export let selectMinConsumingF = <T>(parseFs: ParseF<T>[]): ParseF<T> => token => {
+    if(parseFs.length == 0) return {
+        status: "SELECT_EMPTY",
+        message: ""
+    } satisfies Parser<T>
+    let ps = parseFs.map(f=>f(token))
+    let r = ps[0]!
+    for(let p of ps.slice(1)) {
+        if(r.status != "SUCCESS") {
+            r = p
+            continue
+        }
+        if(p.status == "SUCCESS") {
+            if(p.slice.length > r.slice.length) {
+                r = p
+                continue
+            }
+            continue
+        }
+    }
+    return r
 }
 
 /**
@@ -341,7 +376,12 @@ export let before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a> 
     if(value_before.status != "SUCCESS") return value_before
     let offset = token.length - value_before.slice.length
     let token_before = token.slice(0,offset)
-    return parseF(token_before)
+    let v = parseF(token_before)
+    if(v.status != "SUCCESS") return v
+    return {
+        ...v,
+        slice: value_before.slice
+    }
 }
 /**
  * Parses all remaining characters in the token, returning them as the result.
