@@ -4,7 +4,7 @@ A high-performance, lightweight, and flexible TypeScript library focused on pars
 ## Features
 
 - **Pure function**: Every parsing operation is a simple pure function with no side effects. Parsing logic is predictable, easy to test, and supports functional composition.
-- **Zero dependencies**: Pure TypeScript implementation with no third-party dependencies. It is lightweight (less than 4KB after packaging), avoiding dependency conflicts and version compatibility issues.
+- **Zero dependencies**: Pure TypeScript implementation with no third-party dependencies. It is lightweight (less than 5KB after packaging), avoiding dependency conflicts and version compatibility issues.
 - **Cross-platform**: Only uses standard functions on String, enabling seamless operation in all JavaScript runtimes such as browsers, Node.js, and Bun, without the need for environment-specific adaptations.
 - **Compose**: Rich parser composition capabilities (e.g., composeP for chaining parsing steps, orP for multiple selection branches, before for parsing within fixed segments). Parsing logic can be split into fine-grained functions to maximize reusability.
 - **Type safe**: All core functions are strictly constrained by TypeScript generics for input and output types. Parsing results have automatically derived types, avoiding runtime type errors, and IDEs can provide complete type hints.
@@ -56,6 +56,54 @@ test("pipeO",()=>{
             ["",equal("</value>")],
         )
     ),xml)
+    expect(values).toEqual([
+        {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }
+    ])
+})
+```
+You can do the same thing using a generator function.
+
+```ts
+test("Do xml",()=>{
+    let xml = `
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    `
+    let f = Do(function*(){
+        yield spaces
+        yield equal("<value>")
+        yield spaces
+        yield equal("<foo>")
+        yield spaces
+        let foo = yield search("</foo>")
+        yield spaces
+        yield equal("<bar>")
+        yield spaces
+        let bar = yield search("</bar>")
+        yield spaces
+        yield equal("</value>")
+        return {foo,bar}
+    })
+    let values = simpleParse(many(f),xml)
     expect(values).toEqual([
         {
             foo: "foo_val",
@@ -123,6 +171,7 @@ src/index.test.ts:
 ✓ pipeP      [0.05ms] Combine parsers in sequence (left-associative) and return a result tuple
 ✓ lookup     [0.03ms] `looking at` the token without consuming it  
 ✓ pipeO      [1.09ms] like `pipeP` but collects results with objec 
-                                             
+✓ take       [0.02ms]
+✓ Do         [0.03ms]                                    
 ✓ selectMinConsumingF Selects the parser result that consumes the least tokens
 ```

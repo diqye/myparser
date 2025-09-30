@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -236,6 +236,50 @@ test("pipeO",()=>{
         }
     ])
 })
+test("Do xml",()=>{
+    let xml = `
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    <value>
+        <foo>foo_val</foo>
+        <bar>bar_val</bar>
+    </value>
+    `
+    let f = Do(function*(){
+        yield spaces
+        yield equal("<value>")
+        yield spaces
+        yield equal("<foo>")
+        yield spaces
+        let foo = yield search("</foo>")
+        yield spaces
+        yield equal("<bar>")
+        yield spaces
+        let bar = yield search("</bar>")
+        yield spaces
+        yield equal("</value>")
+        return {foo,bar}
+    })
+    let values = simpleParse(many(f),xml)
+    expect(values).toEqual([
+        {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }, {
+            foo: "foo_val",
+            bar: "bar_val",
+        }
+    ])
+})
 export type ObjectValue =  {
     [k in string]: Value
 }
@@ -378,4 +422,19 @@ test("simple",()=>{
         title: "Level 2",
         list: ["l2 one", "l2 two", "l2 three"],
     }])
+})
+
+test("take",()=>{
+    expect(simpleParse(composeP(breakToEnd,take(2)),"123")).toEqual(["3","12"])
+})
+
+test("Do",()=>{
+    expect(simpleParse(Do(function* () {
+        let a = yield anyChar
+        let b = yield anyChar
+        let d = yield Do(function*(){
+            return yield breakToEnd
+        })
+        return [a,b,d]
+    }),"xxa---")).toEqual([ "x", "x", "a---" ])
 })

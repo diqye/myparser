@@ -424,6 +424,38 @@ export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => tok
     return fn(pa.value)(pa.slice)
 }
 
+
+export let take = (n:number):ParseF<Token> => token => {
+    return {
+        status: "SUCCESS",
+        value: token.slice(0,n),
+        slice: token.slice(n)
+    }
+}
+
+export function Do<T, Y>(
+  gen: () => Generator<ParseF<any>, T, any>
+): ParseF<T> {
+  return token => {
+    const iterator = gen();
+    let state = iterator.next();
+    let currentToken = token;
+
+    while (!state.done) {
+      const parser = state.value;
+      const result = parser(currentToken);
+      if (result.status !== "SUCCESS") return result;
+
+      currentToken = result.slice;
+      state = iterator.next(result.value);
+    }
+
+    return { status: "SUCCESS", value: state.value, slice: currentToken };
+  };
+}
+
+
+
 /**
  * Applies a transformation function to the result of a successful parse.
  * @param p The parser whose result to transform
