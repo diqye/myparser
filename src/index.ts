@@ -1,6 +1,6 @@
 
 export type Token = string
-export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F"
+export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F" | "REGEX_F"
 
 /**
  * Represents the result of a parsing operation.
@@ -425,11 +425,36 @@ export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => tok
 }
 
 
+/**
+ * take n tokens
+ * @param n 
+ * @returns 
+ */
 export let take = (n:number):ParseF<Token> => token => {
     return {
         status: "SUCCESS",
         value: token.slice(0,n),
         slice: token.slice(n)
+    }
+}
+
+/**
+ * match `regex` and slice token
+ * @param regex regexp
+ * @returns  
+ */
+export let regexF = (regex:RegExp): ParseF<Token> => token => {
+    let r = regex.exec(token)
+    if(r == null) {
+        return {
+            status: "REGEX_F",
+            message: ""
+        }
+    }
+    return {
+        status: "SUCCESS",
+        value: r[0],
+        slice: token.slice(r.index).slice(r[0].length)
     }
 }
 
@@ -490,7 +515,7 @@ export let pure = <a>(a:a):ParseF<a> => token => {
  * @param p The parser to make optional
  * @returns A parser that returns p's result on success, or undefined on failure
  */
-export let fail = (message=""):ParseF<void> => token => {
+export let fail = (message=""):ParseF<never> => token => {
     return {
         status: "FAIL",
         message

@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -437,4 +437,24 @@ test("Do",()=>{
         })
         return [a,b,d]
     }),"xxa---")).toEqual([ "x", "x", "a---" ])
+})
+
+test(regexF.name,()=>{
+    let a = parse(regexF(/^[0-9]+/),"123 456")
+    let b = parse(regexF(/^[0-9]+/),"abc 1 23 456")
+    let c = parse(regexF(/[0-9]+/),"abc 1 23 456")
+    expect(a).toEqual({
+        status: "SUCCESS",
+        value: "123",
+        slice: " 456",
+    })
+    expect(b).toEqual({
+        status: "REGEX_F",
+        message: "",
+    })
+    expect(c).toEqual({
+        status: "SUCCESS",
+        value: "1",
+        slice: " 23 456",
+    })
 })
