@@ -431,6 +431,12 @@ export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => tok
  * @returns 
  */
 export let take = (n:number):ParseF<Token> => token => {
+    if(token.length == 0) {
+        return {
+            status: "END_OF_INPUT",
+            message: ""
+        }
+    }
     return {
         status: "SUCCESS",
         value: token.slice(0,n),

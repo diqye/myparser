@@ -424,8 +424,13 @@ test("simple",()=>{
     }])
 })
 
-test("take",()=>{
-    expect(simpleParse(composeP(breakToEnd,take(2)),"123")).toEqual(["3","12"])
+test("take", () => {
+    expect(simpleParse(composeP(breakToEnd, take(2)), "123")).toEqual(["3", "12"])
+    expect(many(fmap(take(1), a => a))("abd de")).toEqual({
+        status: "SUCCESS",
+        slice: "",
+        value: ["a", "b", "d", " ", "d", "e"],
+    })
 })
 
 test("Do",()=>{
