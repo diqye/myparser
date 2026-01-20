@@ -1,6 +1,6 @@
 
 export type Token = string
-export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F" | "REGEX_F"
+export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F" | "REGEX_F" | "AT_LEAST_ONE_SUCCESSFUL"
 
 /**
  * Represents the result of a parsing operation.
@@ -33,11 +33,11 @@ export type ParseFunction<T> = ParseF<T> | {fn:() => ParseF<T>}
  * @param xs Additional parsing functions to try if the previous ones fail
  * @returns A parser that returns the first successful result from the provided parsers
  */
-export let orP = <T>(x:ParseF<T>,... xs: ParseF<T>[]) => (token: Token):Parser<T> => {
-    let a = x(token)
+export const orP = <T>(x:ParseF<T>,... xs: ParseF<T>[]) => (token: Token):Parser<T> => {
+    const a = x(token)
     if(a.status == "SUCCESS") return a
-    for(let f of xs){
-        let a = f(token)
+    for(const f of xs){
+        const a = f(token)
         if(a.status != "SUCCESS") {
             continue
         }
@@ -58,14 +58,14 @@ export let orP = <T>(x:ParseF<T>,... xs: ParseF<T>[]) => (token: Token):Parser<T
  * @param {ParseF<T>[]} parsers - Array of parser functions to evaluate
  * @returns {ParseF<T>} A parser function that applies the selection logic and returns the optimal result
  */
-export let selectMinConsumingF = <T>(parseFs: ParseF<T>[]): ParseF<T> => token => {
+export const selectMinConsumingF = <T>(parseFs: ParseF<T>[]): ParseF<T> => token => {
     if(parseFs.length == 0) return {
         status: "SELECT_EMPTY",
         message: ""
     } satisfies Parser<T>
-    let ps = parseFs.map(f=>f(token))
+    const ps = parseFs.map(f=>f(token))
     let r = ps[0]!
-    for(let p of ps.slice(1)) {
+    for(const p of ps.slice(1)) {
         if(r.status != "SUCCESS") {
             r = p
             continue
@@ -87,8 +87,8 @@ export let selectMinConsumingF = <T>(parseFs: ParseF<T>[]): ParseF<T> => token =
  * @param str The substring to search for
  * @returns A parser that returns the substring before the matched str, with remaining token starting after str
  */
-export let search = (str:Token) => (token:Token):Parser<Token> => {
-    let i = token.indexOf(str)
+export const search = (str:Token) => (token:Token):Parser<Token> => {
+    const i = token.indexOf(str)
     if(i == -1) {
         return {
             status: "DOESNT_INDEX_OF",
@@ -115,8 +115,8 @@ export function isSpace(char: string) {
  * Parses a single whitespace character (space, tab, newline, or carriage return).
  * @returns A parser that returns the parsed whitespace character, with remaining token starting after it
  */
-export let space = (token:Token):Parser<string> => {
-    let head = token[0] as string
+export const space = (token:Token):Parser<string> => {
+    const head = token[0] as string
     if(isSpace(head) == false) {
         return {
             status: "NOT_SPACE",
@@ -136,7 +136,7 @@ export let space = (token:Token):Parser<string> => {
  * Always succeeds regardless of whether whitespace exists.
  * @returns A parser that returns undefined, with remaining token being the input without leading whitespace
  */
-export let spaces = (token:Token):Parser<void> => {
+export const spaces = (token:Token):Parser<void> => {
     return {
         status: "SUCCESS",
         slice: token.trimStart(),
@@ -149,15 +149,43 @@ export let spaces = (token:Token):Parser<void> => {
  * @param p The parser to apply repeatedly
  * @returns A parser that returns an tuple within all successful value of results, with remaining token where parsing stopped
  */
-export let many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> => {
-    let r : T[] = []
+export const many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> => {
+    const r : T[] = []
     while(true) {
-        let a = p(token)
+        const a = p(token)
         if(a.status != "SUCCESS") {
             break
         }
         r.push(a.value)
         token = a.slice
+    }
+    return {
+        status: "SUCCESS",
+        slice: token,
+        value: r
+    }
+}
+
+/**
+ * Applies a parser repeatedly until it fails, at least one successful, collecting all successful results into an array.
+ * @param p The parser to apply repeatedly
+ * @returns A parser that returns an tuple within all successful value of results, with remaining token where parsing stopped
+ */
+export const many1 = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> => {
+    const r : T[] = []
+    while(true) {
+        const a = p(token)
+        if(a.status != "SUCCESS") {
+            break
+        }
+        r.push(a.value)
+        token = a.slice
+    }
+    if(r.length == 0) {
+        return {
+            status: "AT_LEAST_ONE_SUCCESSFUL",
+            message: "At least one successful"
+        }
     }
     return {
         status: "SUCCESS",
@@ -179,16 +207,16 @@ export let many = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]> =
  * @param end The parser that signals the end condition when successful
  * @returns A new parser that produces an array of T values
  */
-export let manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => token => {
-    let value: T[] = []
+export const manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => token => {
+    const value: T[] = []
     while(true) {
-        let end_r = end(token)
+        const end_r = end(token)
         if(end_r.status == "SUCCESS") return {
             status: "SUCCESS",
             value,
             slice: token
         }
-        let parse_r = parseF(token)
+        const parse_r = parseF(token)
         if(parse_r.status != "SUCCESS") return {
             status: "SUCCESS",
             value,
@@ -212,9 +240,9 @@ export let manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => tok
  * @param sep The parser to apply for separators between values
  * @returns A new parser that produces an array of T values
  */
-export let sepBy = <T, S>(parseF: ParseF<T>, sep: ParseF<S>): ParseF<T[]> => token => {
+export const sepBy = <T, S>(parseF: ParseF<T>, sep: ParseF<S>): ParseF<T[]> => token => {
     const values: T[] = []
-    let firstResult = parseF(token)
+    const firstResult = parseF(token)
     if (firstResult.status !== "SUCCESS") return {
         status: "SUCCESS",
         value: values,
@@ -250,7 +278,7 @@ export let sepBy = <T, S>(parseF: ParseF<T>, sep: ParseF<S>): ParseF<T[]> => tok
  * Parses the first character of the token. Fails if the token is empty.
  * @returns A parser that returns the first character, with remaining token starting after it
  */
-export let anyChar = (token:Token):Parser<string> => {
+export const anyChar = (token:Token):Parser<string> => {
     if(token.length == 0) return {
         status: "END_OF_INPUT",
         message: "Expect any char actual end of input"
@@ -268,8 +296,8 @@ export let anyChar = (token:Token):Parser<string> => {
  * @param str The string to match exactly
  * @returns A parser that returns the matched string, with remaining token starting after it
  */
-export let equal = (str:Token) => (token:Token):Parser<string> => {
-    let tobe = token.slice(0,str.length)
+export const equal = (str:Token) => (token:Token):Parser<string> => {
+    const tobe = token.slice(0,str.length)
     if(tobe != str) {
         return {
             status: "EQUAL_FAIL",
@@ -287,8 +315,8 @@ export let equal = (str:Token) => (token:Token):Parser<string> => {
  * @param str The string to avoid matching
  * @returns A parser that returns the parsed character, with remaining token starting after it
  */
-export let notEqual = (str:Token) => (token:Token):Parser<string> => {
-    let tobe = token.slice(0,str.length)
+export const notEqual = (str:Token) => (token:Token):Parser<string> => {
+    const tobe = token.slice(0,str.length)
     if(tobe == str) {
         return {
             status: "EQUAL_FAIL",
@@ -308,21 +336,21 @@ export let notEqual = (str:Token) => (token:Token):Parser<string> => {
  * @returns True if the character is a digit, false otherwise
  */
 export function isNumber(char:string) {
-    let zero = '0'.charCodeAt(0)
-    let nine = '9'.charCodeAt(0)
-    let code = char.charCodeAt(0)
+    const zero = '0'.charCodeAt(0)
+    const nine = '9'.charCodeAt(0)
+    const code = char.charCodeAt(0)
     return code >= zero && code <= nine
 }
 /**
  * Parses a JSON-style number (integer or floating-point).
  * @returns A parser that returns the parsed number as a Number, with remaining token starting after the number
  */
-export let numberF: ParseF<number> = token => {
+export const numberF: ParseF<number> = token => {
     if(token.length == 0 ) return {
         status: "END_OF_INPUT",
         message: "Expect number actual end of input"
     }
-    let head = token.charAt(0)
+    const head = token.charAt(0)
     if(isNumber(head) == false) return {
         status: "NOT_NUMBER",
         message: "Not number:" + head
@@ -331,7 +359,7 @@ export let numberF: ParseF<number> = token => {
     let i = 1
     while(true){
         if(i == token.length) break
-        let c = token.charAt(i)
+        const c = token.charAt(i)
         if(c == '.') {
             have_dot = true
             i++
@@ -356,9 +384,9 @@ export let numberF: ParseF<number> = token => {
  * @param log_result Whether to log the parse result
  * @returns A wrapped parser that logs information before parsing
  */
-export let plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> => token => {
+export const plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> => token => {
     console.log(prefix+token.slice(100))
-    let r =  fn(token)
+    const r =  fn(token)
     if(log_result) {
         console.log(r)
     }
@@ -371,12 +399,12 @@ export let plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> =>
  * @param parseFBefore The parser that identifies the reference point (its match is not included)
  * @returns A parser that returns the result of parseF applied to the content before the reference point
  */
-export let before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a> => token => {
-    let value_before = parseFBefore(token)
+export const before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a> => token => {
+    const value_before = parseFBefore(token)
     if(value_before.status != "SUCCESS") return value_before
-    let offset = token.length - value_before.slice.length
-    let token_before = token.slice(0,offset)
-    let v = parseF(token_before)
+    const offset = token.length - value_before.slice.length
+    const token_before = token.slice(0,offset)
+    const v = parseF(token_before)
     if(v.status != "SUCCESS") return v
     return {
         ...v,
@@ -387,7 +415,7 @@ export let before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a> 
  * Parses all remaining characters in the token, returning them as the result.
  * @returns A parser that returns the entire remaining token, with an empty slice
  */
-export let breakToEnd : ParseF<Token> = token => {
+export const breakToEnd : ParseF<Token> = token => {
     return {
         status: "SUCCESS",
         value: token,
@@ -399,7 +427,7 @@ export let breakToEnd : ParseF<Token> = token => {
  * Verifies that the current position is at the end of the input (no remaining token).
  * @returns A parser that returns undefined if at end of input, otherwise fails
  */
-export let endOfInput : ParseF<void> = token => {
+export const endOfInput : ParseF<void> = token => {
     if(token.length == 0) return {
         status: "SUCCESS",
         value: undefined,
@@ -417,9 +445,9 @@ export let endOfInput : ParseF<void> = token => {
  * @param fn A function that takes the result of p and returns the second parser
  * @returns A parser that runs p, then runs the parser from fn with p's result, returning its result
  */
-export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => token => {
-    let pfn = typeof p == "function" ? p : p.fn()
-    let pa = pfn(token)
+export const bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => token => {
+    const pfn = typeof p == "function" ? p : p.fn()
+    const pa = pfn(token)
     if(pa.status != "SUCCESS") return pa
     return fn(pa.value)(pa.slice)
 }
@@ -430,7 +458,7 @@ export let bind = <a,b>(p:ParseFunction<a>,fn:(a:a)=>ParseF<b>):ParseF<b> => tok
  * @param n 
  * @returns 
  */
-export let take = (n:number):ParseF<Token> => token => {
+export const take = (n:number):ParseF<Token> => token => {
     if(token.length == 0) {
         return {
             status: "END_OF_INPUT",
@@ -449,8 +477,8 @@ export let take = (n:number):ParseF<Token> => token => {
  * @param regex regexp
  * @returns  
  */
-export let regexF = (regex:RegExp): ParseF<Token> => token => {
-    let r = regex.exec(token)
+export const regexF = (regex:RegExp): ParseF<Token> => token => {
+    const r = regex.exec(token)
     if(r == null) {
         return {
             status: "REGEX_F",
@@ -493,9 +521,9 @@ export function Do<T, Y>(
  * @param fn The transformation function to apply to the parsed value
  * @returns A parser that returns the transformed value on success
  */
-export let fmap = <a,b>(p:ParseFunction<a>,fn:(a:a)=>b):ParseF<b> => token => {
-    let pfn = typeof p == "function" ? p : p.fn()
-    let a = pfn(token)
+export const fmap = <a,b>(p:ParseFunction<a>,fn:(a:a)=>b):ParseF<b> => token => {
+    const pfn = typeof p == "function" ? p : p.fn()
+    const a = pfn(token)
     if(a.status != "SUCCESS") return a
     return {
         ...a,
@@ -508,7 +536,7 @@ export let fmap = <a,b>(p:ParseFunction<a>,fn:(a:a)=>b):ParseF<b> => token => {
  * @param a The value to return
  * @returns A parser that returns a and leaves the token unchanged
  */
-export let pure = <a>(a:a):ParseF<a> => token => {
+export const pure = <a>(a:a):ParseF<a> => token => {
     return {
         status: "SUCCESS",
         value: a,
@@ -521,7 +549,7 @@ export let pure = <a>(a:a):ParseF<a> => token => {
  * @param p The parser to make optional
  * @returns A parser that returns p's result on success, or undefined on failure
  */
-export let fail = (message=""):ParseF<never> => token => {
+export const fail = (message=""):ParseF<never> => token => {
     return {
         status: "FAIL",
         message
@@ -533,8 +561,8 @@ export let fail = (message=""):ParseF<never> => token => {
  * @param message The failure message
  * @returns A parser that fails with the given message
  */
-export let optional = <T>(p: ParseF<T>):ParseF<T|undefined> => token => {
-    let a = p(token)
+export const optional = <T>(p: ParseF<T>):ParseF<T|undefined> => token => {
+    const a = p(token)
     if(a.status != "SUCCESS") return {
         status: "SUCCESS",
         value: undefined,
@@ -553,8 +581,8 @@ export let optional = <T>(p: ParseF<T>):ParseF<T|undefined> => token => {
  * @param parseF - A parser function that takes a token and returns a parse result.
  * @returns A parser function that parses without consuming the token.
  */
-export let lookup = <T>(parseF:ParseF<T>):ParseF<T> => token => {
-    let parser = parseF(token)
+export const lookup = <T>(parseF:ParseF<T>):ParseF<T> => token => {
+    const parser = parseF(token)
     if(parser.status != "SUCCESS") return parser
     return {
         ...parser,
@@ -578,9 +606,9 @@ export function composeP<a,b,c,d,e,f,g,h>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:
 export function composeP<a,b,c,d,e,f,g,h,i>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>,g:ParseF<g>,h:ParseF<h>,i:ParseF<i>): ParseF<[a,b,c,d,e,f,g,h,i]>;
 export function composeP(...p: any[]) {
     return (token:Token):any => {
-        let r = []
-        for(let f of [...p].reverse()) {
-            let a = f(token)
+        const r = []
+        for(const f of [...p].reverse()) {
+            const a = f(token)
             if(a.status != "SUCCESS") return a
             token = a.slice
             r.push(a.value)
@@ -608,9 +636,9 @@ export function pipeP<a,b,c,d,e,f,g,h>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:Par
 export function pipeP<a,b,c,d,e,f,g,h,i>(a:ParseF<a>,b:ParseF<b>,c:ParseF<c>,d:ParseF<d>,e:ParseF<e>,f:ParseF<f>,g:ParseF<g>,h:ParseF<h>,i:ParseF<i>): ParseF<[a,b,c,d,e,f,g,h,i]>;
 export function pipeP(...p: any[]) {
     return (token:Token):any => {
-        let r = []
-        for(let f of p) {
-            let a = f(token)
+        const r = []
+        for(const f of p) {
+            const a = f(token)
             if(a.status != "SUCCESS") return a
             token = a.slice
             r.push(a.value)
@@ -628,8 +656,8 @@ export function pipeP(...p: any[]) {
  * passing the remaining token from each to the next, and collects results with object.
  * ### Example:
  * ```ts
- *  let f = pipeO(["a",anyChar],["",anyChar],["c",numberF])
- *  let r = simpleParse(f,"ab2cd")
+ *  const f = pipeO(["a",anyChar],["",anyChar],["c",numberF])
+ *  const r = simpleParse(f,"ab2cd")
  *  expect(r).toEqual({
  *      a: "a",
  *      c: 2
@@ -1190,9 +1218,9 @@ export function pipeO<
 }>
 export function pipeO(...ps:[string,ParseF<any>][]) : ParseF<any> {
     return (token:Token):any => {
-        let r = {} as any
-        for(let [key,f] of ps) {
-            let a = f(token)
+        const r = {} as any
+        for(const [key,f] of ps) {
+            const a = f(token)
             if(a.status != "SUCCESS") return a
             token = a.slice
             if(key == "") continue
@@ -1214,7 +1242,7 @@ export function pipeO(...ps:[string,ParseF<any>][]) : ParseF<any> {
  * @returns The result of the parsing operation
  */
 export function parse<T>(p:ParseFunction<T>,token:Token):Parser<T>{
-    let f = typeof p == "function" ? p : p.fn()
+    const f = typeof p == "function" ? p : p.fn()
     return f(token)
 }
 
@@ -1239,8 +1267,8 @@ export class ParserException extends Error {
  * @throws ParserException if parsing fails
  */
 export function simpleParse<T>(p:ParseFunction<T>,token:Token): T {
-    let f = typeof p == "function" ? p : p.fn()
-    let r = f(token)
+    const f = typeof p == "function" ? p : p.fn()
+    const r = f(token)
     if(r.status != "SUCCESS") throw new ParserException(r.status,r.message)
     return r.value
 }

@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF, many1 } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -104,6 +104,11 @@ test("many",()=>{
     if(a.status != "SUCCESS") return expect().fail("many failed")
     expect(a.value).toEqual("hhhhgggghghghghgh".split(""))
     expect(a.slice).toBe("123")
+})
+test("many1",()=>{
+    const parseF = many1(equal("hello"))
+    expect(parseF).toThrow()
+    expect(simpleParse(parseF,("hellohello"))).toEqual(["hello","hello"])
 })
 
 test("selectMinConsumingF",()=>{

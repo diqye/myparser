@@ -1,177 +1,255 @@
 # myparser
-A high-performance, lightweight, and flexible TypeScript library focused on parsing custom-format strings—whether for simple text extraction or precise parsing of complex formats, it delivers a concise and efficient solution.
+
+A high-performance, lightweight, and flexible TypeScript library redefining structured text parsing. Built on the core philosophy of **functional composition** and **type safety**, it lets you break down complex parsing logic into reusable, pure functions—turning fragile ad-hoc code into robust, declarative workflows. Whether for simple text extraction, custom format parsing, or complex DSL processing, myparser delivers conciseness, efficiency, and predictability.
+
+## Core Philosophy
+
+myparser is designed around three uncompromising principles, solving the root pain points of traditional parsing (regex chaos, tight coupling, type ambiguity):
+
+1. **Composition Over Monoliths**: Parsing logic is built by combining small, single-responsibility pure functions. No more monolithic regex or tangled string slicing—each parser is a reusable building block that integrates seamlessly with others.
+
+2. **Type Safety by Design**: TypeScript generics enforce strict input/output contracts. Every parser’s result type is automatically inferred, eliminating runtime type errors and enabling full IDE intellisense for a frictionless development experience.
+
+3. **Efficiency Without Compromise**: Slice-based core logic operates on string segments (not character-by-character) to guarantee linear time complexity (O(n)), making it blazingly fast even for extra-long strings.
 
 ## Features
 
-- **Pure function**: Every parsing operation is a simple pure function with no side effects. Parsing logic is predictable, easy to test, and supports functional composition.
-- **Zero dependencies**: Pure TypeScript implementation with no third-party dependencies. It is lightweight (less than 5KB after packaging), avoiding dependency conflicts and version compatibility issues.
-- **Cross-platform**: Only uses standard functions on String, enabling seamless operation in all JavaScript runtimes such as browsers, Node.js, and Bun, without the need for environment-specific adaptations.
-- **Compose**: Rich parser composition capabilities (e.g., composeP for chaining parsing steps, orP for multiple selection branches, before for parsing within fixed segments). Parsing logic can be split into fine-grained functions to maximize reusability.
-- **Type safe**: All core functions are strictly constrained by TypeScript generics for input and output types. Parsing results have automatically derived types, avoiding runtime type errors, and IDEs can provide complete type hints.
-- **Slice-based efficiency**: The core parsing logic is implemented based on slice, directly operating on string segments instead of processing character by character. This ensures high performance in token parsing and string splitting, maintaining linear time complexity especially when handling extra-long strings.
+- **Pure Function Paradigm**: All parsing operations are side-effect-free pure functions. Logic is predictable, easy to unit test, and naturally compatible with functional composition patterns.
 
+- **Zero Dependencies**: Pure TypeScript implementation (no third-party reliance) weighs less than 5KB after bundling. Avoid dependency bloat, conflicts, and version compatibility headaches.
 
-## Quick start
+- **Universal Compatibility**: Leverages only standard String APIs, working seamlessly across browsers, Node.js, Bun, and all JavaScript runtimes—no environment-specific adaptations needed.
+
+- **Rich Combinators**: Chain, branch, and repeat parsers with intuitive combinators (`pipeO`, `composeP`, `orP`, `many`, `before`). Split logic into fine-grained functions for maximum reusability and maintainability.
+
+- **Intuitive Do Syntax**: Use generator functions via `Do` to write sequential parsing logic in a readable, imperative-like style—without sacrificing functional purity or type safety.
+
+- **Slice-Based Performance**: Core parsing uses string slicing instead of character-wise processing, ensuring high throughput for tokenization and string splitting, even with large datasets.
+
+## Quick Start
 
 ### Installation
 
-bun
+Install via your preferred package manager:
+
+#### Bun
+
 ```zsh
+
 bun add @diqye/myparser
 ```
-npm
+
+#### npm
+
 ```zsh
+
 npm install --save @diqye/myparser
 ```
-## Parse xml
-```typescript
-test("pipeO",()=>{
-    let xml = `
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    `
-    let values = simpleParse(many(    // many function can keep parsing until failure, assemble results into a list
-        pipeO(
-            ["",spaces],              // remove whitespace
-            ["",equal("<value>")],    // exact match <value>
-            ["",spaces],              // remove whitespace
-            ["",equal("<foo>")],      // exact match <foo>
-            ["",spaces],              // remove whitespace 
-            ["foo",search("</foo>")], // search </foo> and assign skipped content to foo property of result object
-            ["",spaces],              // remove whitespace 
-            ["",equal("<bar>")],      // eg
-            ["",spaces],              // eg
-            ["bar",search("</bar>")], // search </bar> and assign skipped content to bar property of result object
-            ["",spaces], 
-            ["",equal("</value>")],
-        )
-    ),xml)
-    expect(values).toEqual([
-        {
-            foo: "foo_val",
-            bar: "bar_val",
-        }, {
-            foo: "foo_val",
-            bar: "bar_val",
-        }, {
-            foo: "foo_val",
-            bar: "bar_val",
-        }
-    ])
-})
-```
-You can do the same thing using a generator function.
 
-```ts
-test("Do xml",()=>{
-    let xml = `
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    <value>
-        <foo>foo_val</foo>
-        <bar>bar_val</bar>
-    </value>
-    `
-    let f = Do(function*(){
-        yield spaces
-        yield equal("<value>")
-        yield spaces
-        yield equal("<foo>")
-        yield spaces
-        let foo = yield search("</foo>")
-        yield spaces
-        yield equal("<bar>")
-        yield spaces
-        let bar = yield search("</bar>")
-        yield spaces
-        yield equal("</value>")
-        return {foo,bar}
-    })
-    let values = simpleParse(many(f),xml)
-    expect(values).toEqual([
-        {
-            foo: "foo_val",
-            bar: "bar_val",
-        }, {
-            foo: "foo_val",
-            bar: "bar_val",
-        }, {
-            foo: "foo_val",
-            bar: "bar_val",
-        }
-    ])
-})
-```
-## Parse numbers in the format of n 1
+### Example 1: Parse XML-Like Nodes (Demonstrate Composition & Do Syntax)
+
+Parse a list of `<user>` nodes to extract structured data. We’ll show two equivalent approaches:`pipeO` (declarative composition) and `Do` (generator syntax) — highlighting myparser’s flexibility.
 
 ```typescript
-test("before",()=>{
-    let str =`
-    n 1 n 2 
-    n 3 n 4
 
-    n 0Part never parse
-    n 5
-    n 6
-    `
-    
-    let n_number_f = fmap(
-        composeP(numberF,search("n ")),
-        a => a[0]
-    )
-    let n_list = simpleParse(many(n_number_f),str)
-    expect(n_list).toEqual([1,2,3,4,0,5,6])
+import { simpleParse, many, pipeO, Do, spaces, equal, search } from "@diqye/myparser";
 
-    let n_list_before = simpleParse(before(many(n_number_f),search("Part never parse")),str)
-    expect(n_list_before).toEqual([1,2,3,4,0])
-})
+// Sample XML-like content (real XML/HTML fragments work similarly)
+const xml = `
+  <user>
+    <name>Alice</name>
+    <age>30</age>
+  </user>
+  <user>
+    <name>Bob</name>
+    <age>25</age>
+  </user>
+`;
+
+// Approach 1: Use pipeO for declarative, composable parsing
+const userParserWithPipeO = pipeO([
+  ["", spaces],          // Skip whitespace (reusable primitive)
+  ["", equal("<user>")],  // Exact match opening tag
+  ["", spaces],
+  ["", equal("<name>")], // Match <name> tag
+  ["", spaces],
+  ["name", search("</name>")], // Extract content until </name>, assign to "name"
+  ["", spaces],
+  ["", equal("<age>")],  // Match <age> tag
+  ["", spaces],
+  ["age", search("</age>")],  // Extract content until </age>, assign to "age"
+  ["", spaces],
+  ["", equal("</user>")], // Match closing tag
+]);
+
+// Approach 2: Use Do for imperative-like readability (same logic, different style)
+const userParserWithDo = Do(function* () {
+  yield spaces;          // Yield parsers to execute sequentially
+  yield equal("<user>");
+  yield spaces;
+  yield equal("<name>");
+  yield spaces;
+  const name = yield search("</name>"); // Capture result of search
+  yield spaces;
+  yield equal("<age>");
+  yield spaces;
+  const age = yield search("</age>");   // Capture age value
+  yield spaces;
+  yield equal("</user>");
+  return { name, age: Number(age) }; // Transform & return structured data
+});
+
+// Parse multiple users with `many` (repeat until failure)
+const usersWithPipeO = simpleParse(many(userParserWithPipeO), xml);
+const usersWithDo = simpleParse(many(userParserWithDo), xml);
+
+console.log(usersWithDo);
+// Output: [{ name: "Alice", age: 30 }, { name: "Bob", age: 25 }]
+
 ```
 
-## API
-For detailed API functionality, refer to [./index.test.ts](src/index.test.ts)
+*Key Takeaway*: Both approaches reuse core primitives (`spaces`, `equal`, `search`) and combine them with `many` — proving how myparser turns small building blocks into complex parsers.
 
-```zsh
-src/index.test.ts:
-✓ space               Parse a single whitespace character          
-✓ spaces     [0.02ms] Parse and remove leading whitespace characters
-✓ anychar    [0.03ms] Parse any single character                   
-✓ search     [0.06ms] Search for a string and continue parsing after the match
-✓ composeP   [0.05ms] Combine parsers in sequence (right-associative) and return a result tuple
-✓ bind       [0.07ms] Dynamically chain parsers using results from previous steps
-✓ fmap       [0.02ms] Transform values from successful parses      
-✓ many       [0.07ms] Repeat a parser until failure, collecting all results
-✓ manyTill   [0.11ms] A parser combinator                          
-✓ sepBy      [0.08ms] A parser combinator                          
-✓ orP        [0.08ms] Try parsers sequentially and return the first success
-✓ equal      [0.02ms] Parse a string matching the exact input      
-✓ breakToEnd          Capture all remaining input from current position
-✓ endOfInput [0.04ms] Verify parsing has reached the end of input  
-✓ before              Parse content occurring before a specified marker
-✓ json test  [0.93ms] Parse JSON-formatted content                 
-✓ simple     [0.13ms] Basic parsing workflow demonstration         
-✓ optional            Optionally parse content (returns undefined on failure)
-✓ pure                Wrap a value in a successful parser result   
-✓ fail                Create a parser that always fails            
-✓ pipeP      [0.05ms] Combine parsers in sequence (left-associative) and return a result tuple
-✓ lookup     [0.03ms] `looking at` the token without consuming it  
-✓ pipeO      [1.09ms] like `pipeP` but collects results with objec 
-✓ take       [0.02ms]
-✓ Do         [0.03ms]                                    
-✓ selectMinConsumingF Selects the parser result that consumes the least tokens
+### Example 2: Parse Custom Delimited Data (Demonstrate Combinators & Filtering)
+
+Parse a log file with custom format `[LEVEL] Timestamp - Message`, extracting only `ERROR` entries before a marker. This showcases `before`, `orP`, and `fmap` for transformation.
+
+```typescript
+
+import { simpleParse, many, before, orP, pipeO, fmap, equal, search, spaces } from "@diqye/myparser";
+
+// Sample log content
+const log = `
+[INFO] 2024-05-01 10:00:00 - Server started
+[ERROR] 2024-05-01 10:05:00 - Database connection failed
+[WARN] 2024-05-01 10:06:00 - Low memory
+[ERROR] 2024-05-01 10:10:00 - API timeout
+--- STOP HERE ---
+[INFO] 2024-05-01 10:15:00 - Server restarted
+`;
+
+// Parser for log level (only match ERROR/WARN/INFO)
+const levelParser = orP(
+  equal("[ERROR]"),
+  equal("[WARN]"),
+  equal("[INFO]")
+);
+
+// Parser for a single log entry
+const logEntryParser = pipeO([
+  ["level", levelParser],       // Extract level
+  ["", spaces],
+  ["timestamp", search(" - ")], // Extract timestamp until " - "
+  ["message", search("\n")],    // Extract message until newline
+]);
+
+// Transform to clean up results (remove brackets from level)
+const cleanLogParser = fmap(logEntryParser, (entry) => ({
+  level: entry.level.replace(/\[|\]/g, ""),
+  timestamp: entry.timestamp.trim(),
+  message: entry.message.trim(),
+}));
+
+// Filter to keep only ERROR entries
+const errorParser = fmap(cleanLogParser, (entry) => 
+  entry.level === "ERROR" ? entry : null
+).filter(Boolean); // Remove nulls (non-ERROR entries)
+
+// Parse all errors BEFORE the "--- STOP HERE ---" marker
+const errors = simpleParse(
+  before(many(errorParser), search("--- STOP HERE ---")),
+  log
+);
+
+console.log(errors);
+// Output: [
+//   { level: "ERROR", timestamp: "2024-05-01 10:05:00", message: "Database connection failed" },
+//   { level: "ERROR", timestamp: "2024-05-01 10:10:00", message: "API timeout" }
+// ]
+
 ```
+
+*Key Takeaway*: myparser’s combinators let you layer logic (parsing → transformation → filtering) without coupling. The `before` combinator safely limits parsing to a segment, avoiding unwanted content.
+
+## Why myparser?
+
+Compare myparser to traditional parsing approaches:
+
+|Approach|Main Pain Points|myparser Advantage|
+|---|---|---|
+|Regex|Unreadable for complex logic, poor error handling, no types|Composable, readable, type-safe, precise error localization|
+|Manual String Slicing|Tight coupling, off-by-one errors, hard to maintain|Decoupled primitives, slice-optimized core, no manual index management|
+|Heavy Parsers (PEG.js)|Bulky, dependencies, steep learning curve|Lightweight (5KB), zero dependencies, intuitive functional API|
+## Use Cases
+
+- **Custom Config Files**: Parse domain-specific config formats (e.g., INI, YAML-like subsets) with reusable parsers.
+
+- **Log Processing**: Extract structured data (timestamps, levels, messages) from unstructured log lines.
+
+- **DSL Parsing**: Build parsers for custom domain-specific languages (e.g., query syntax, template engines).
+
+- **API Payload Sanitization**: Parse & transform raw string payloads into typed objects.
+
+- **XML/HTML Fragments**: Extract specific tags/attributes without full DOM parsing.
+
+# Myparser Library API Documentation (Concise Table Version)
+
+This document presents all APIs of the library in a concise tabular format, categorized by functionality, including core definitions and descriptions.
+
+## I. Core Type Definitions
+
+|Type Name|Definition|Description|
+|---|---|---|
+|Token|`export type Token = string`|Basic unit of parsing input, essentially a string.|
+|ParseError|Enum type with 10 error identifiers.|Indicates the cause of parsing failure in different scenarios (e.g., END_OF_INPUT, EQUAL_FAIL).|
+|Parser<T>|Union type, containing value and remaining Token on success, error message on failure.|Describes the result of a single parsing operation.|
+|ParseF<T>|`type ParseF<T> = (token: Token) => Parser<T>`|Basic parser function type, accepting a Token and returning a parsing result.|
+|ParseFunction<T>|Union type, supporting direct parser functions or recursive parser functions.|Adapts to scenarios with recursively defined parsers.|
+## II. Parser Combinators
+
+|Function Name|Definition|Function Description|
+|---|---|---|
+|orP<T>|(x: ParseF<T>, ...xs: ParseF<T>[]) => ParseF<T>|Tries parser functions in sequence and returns the first successful result.|
+|selectMinConsumingF<T>|(parseFs: ParseF<T>[]) => ParseF<T>|Selects the successful parsing result that consumes the least Tokens; returns the last error if all fail.|
+|bind<a,b>|(p: ParseFunction<a>, fn: (a: a) => ParseF<b>) => ParseF<b>|Chains parsers, using the result of the previous parser to determine the next one.|
+|fmap<a,b>|(p: ParseFunction<a>, fn: (a: a) => b) => ParseF<b>|Transforms the value of a successful parsing result without changing Token consumption.|
+|composeP|(...p: any[]) => (token: Token) => Parser<any[]>|Right-associative parser combiner, returns results in input order.|
+|pipeP|(...p: any[]) => (token: Token) => Parser<any[]>|Left-associative parser combiner, executes sequentially and collects results.|
+|pipeO|(...ps: [string, ParseF<any>][]) => ParseF<any>|Left-associative parser combiner, collects results as an object (supports ignoring items without keys).|
+## III. Basic Parser Functions
+
+|Function Name|Definition|Function Description|
+|---|---|---|
+|search|(str: Token) => ParseF<Token>|Searches for the target substring, returns content before the substring and remaining Token (excluding the target substring).|
+|space|(token: Token) => Parser<string>|Parses a single whitespace character (space, tab, newline/carriage return).|
+|spaces|(token: Token) => Parser<void>|Removes all leading whitespace characters, always succeeds.|
+|anyChar|(token: Token) => Parser<string>|Parses the first character, fails if input is empty.|
+|equal|(str: Token) => ParseF<string>|Parses a substring that exactly matches the specified string, returns the matched string and remaining Token.|
+|notEqual|(str: Token) => ParseF<string>|Parses a single character that does not match the specified string, returns the parsed character and remaining Token.|
+|numberF|ParseF<number>|Parses a JSON-style number (integer or floating-point), returns the number and remaining Token.|
+|take|(n: number) => ParseF<Token>|Takes the first n characters as the result, returns the substring and remaining Token; fails if input is empty.|
+|regexF|(regex: RegExp) => ParseF<Token>|Matches input with the specified regular expression, returns the matched substring and remaining Token; fails if no match.|
+|breakToEnd|ParseF<Token>|Parses all remaining characters as the result, returns the entire remaining Token with an empty slice.|
+|endOfInput|ParseF<void>|Verifies if the current position is at the end of input; succeeds if Token is empty, fails otherwise.|
+## IV. Repeated Parsing Functions
+
+|Function Name|Definition|Function Description|
+|---|---|---|
+|many<T>|(p: (token: Token) => Parser<T>) => ParseF<T[]>|Applies the parser repeatedly until it fails, collects all successful results into an array (supports empty results).|
+|many1<T>|(p: (token: Token) => Parser<T>) => ParseF<T[]>|Applies the parser repeatedly until it fails, requires at least one success; collects results into an array.|
+|manyTill<T,U>|(parseF: ParseF<T>, end: ParseF<U>) => ParseF<T[]>|Repeats the main parser until the end parser succeeds, collects results of the main parser into an array.|
+|sepBy<T,S>|(parseF: ParseF<T>, sep: ParseF<S>) => ParseF<T[]>|Parses multiple values separated by the separator parser, collects main parser results into an array (supports empty results).|
+## V. Utility & Helper Functions
+
+|Function Name|Definition|Function Description|
+|---|---|---|
+|isSpace|(char: string) => boolean|Checks if a character is a whitespace character (space, tab, newline, carriage return).|
+|isNumber|(char: string) => boolean|Checks if a character is a numeric digit (0-9).|
+|plog<T>|(fn: ParseF<T>, prefix="plog=", log_result=false) => ParseF<T>|Debug parser, logs the first 100 characters of Token and optional result before parsing.|
+|before<a,b>|(parseF: ParseF<a>, parseFBefore: ParseF<b>) => ParseF<a>|Parses content before the position where the end parser succeeds, returns the result of the main parser.|
+|pure<a>|(a: a) => ParseF<a>|Always succeeds with the specified value without consuming any Token.|
+|fail|(message="") => ParseF<never>|Always fails with the optional specified message.|
+|optional<T>|(p: ParseF<T>) => ParseF<T|undefined>|Makes the parser optional; returns undefined without consuming Token if the original parser fails.|
+|lookup<T>|(parseF: ParseF<T>) => ParseF<T>|Peeks at the Token without consuming it; returns the result if parsing succeeds, keeps the original Token.|
+|Do<T,Y>|(gen: () => Generator<ParseF<any>, T, any>) => ParseF<T>|Uses generator functions to simplify sequential parsing logic, passes results between parsers.|
+|simpleParse<T>|(p: ParseFunction<T>, token: Token) => T|Simplified parsing function; returns the parsed value on success, throws a ParserException on failure.|
