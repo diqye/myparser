@@ -411,6 +411,21 @@ export const before =  <a,b>(parseF:ParseF<a>,parseFBefore:ParseF<b>) : ParseF<a
         slice: value_before.slice
     }
 }
+
+/**
+ * Restores the token that was "eaten" by the library's parsing functions by prepending it to the subsequent token.
+ * This ensures the original token (e.g. newline character) is retained in the final sliced result instead of being lost.
+ *  
+ * @param prepareToken 
+ * @returns 
+ */
+export const handBack = (prepareToken:string) : ParseF<void> => token => {
+    return {
+        status: "SUCCESS",
+        value: undefined,
+        slice: prepareToken + token
+    }
+}
 /**
  * Parses all remaining characters in the token, returning them as the result.
  * @returns A parser that returns the entire remaining token, with an empty slice

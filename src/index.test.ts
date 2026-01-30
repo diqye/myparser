@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF, many1 } from "./index"
+import { anyChar,equal, parse, composeP, search, space, spaces, many, type ParseF, orP, fmap, notEqual, numberF, plog, optional, simpleParse, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF, many1, handBack } from "./index"
 
 test("space",()=>{
     let p = parse(
@@ -48,6 +48,13 @@ test("search",()=>{
     expect(a.slice).toBe("321")
     let b = parse(search("abcd"),"123abc321")
     expect(b.status).toBe("DOESNT_INDEX_OF")
+})
+test("handBack",()=>{
+    let a = parse(fmap(pipeP(search("abc"),handBack("abc")),xs=>xs[0]),"123abc321")
+    if(a.status != "SUCCESS") return expect().fail("parse anyChar failed")
+    
+    expect(a.value).toBe("123")
+    expect(a.slice).toBe("abc321")
 })
 
 test("composeP",()=>{
