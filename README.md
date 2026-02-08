@@ -46,7 +46,10 @@ npm install --save @diqye/myparser
 
 ### Example: Complete JSON Parser
 
+[click here for tutorial](./docs/tutorial.md)
+
 Here's a complete JSON parser built with myparser, demonstrating how to compose small parsers into a complex, real-world parser:
+
 
 ```typescript
 import { parse, orP, fmap, equal, pipeP, manyTill, sepBy, pipeO, bind, pure, spaces, endOfInput, anyChar, numberF } from "@diqye/myparser";
