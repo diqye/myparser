@@ -82,12 +82,21 @@ export const selectMinConsumingF = <T>(parseFs: ParseF<T>[]): ParseF<T> => token
 }
 
 /**
- * Searches for a specified substring in the token. Returns the part before the substring
- * and continues parsing from the position after the substring.
- * @param str The substring to search for
- * @returns A parser that returns the substring before the matched str, with remaining token starting after str
+ * Consumes input until the first occurrence of the given delimiter.
+ *
+ * The parser searches for `str` in the current token:
+ * - If found, it returns the substring before `str` as the result value,
+ *   and advances the input position to immediately after `str`
+ *   (the delimiter itself is consumed).
+ * - If `str` is not found, the parser fails.
+ *
+ * This is equivalent to a `manyTill`-style parser that takes input
+ * until a terminating pattern is encountered.
+ *
+ * @param str The delimiter to stop parsing at
+ * @returns A parser that yields the consumed substring before `str`
  */
-export const search = (str:Token) => (token:Token):Parser<Token> => {
+export const takeUntil = (str:string) => (token:Token):Parser<Token> => {
     const i = token.indexOf(str)
     if(i == -1) {
         return {
@@ -210,18 +219,21 @@ export const many1 = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]
 export const manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => token => {
     const value: T[] = []
     while(true) {
+        if(token.length == 0) {
+            return {
+                status: "END_OF_INPUT",
+                message: "End of input"
+            }
+        }
         const end_r = end(token)
         if(end_r.status == "SUCCESS") return {
             status: "SUCCESS",
             value,
-            slice: token
+            slice: end_r.slice
         }
         const parse_r = parseF(token)
-        if(parse_r.status != "SUCCESS") return {
-            status: "SUCCESS",
-            value,
-            slice: token
-        }
+        if(parse_r.status != "SUCCESS") return parse_r
+
         token = parse_r.slice
         value.push(parse_r.value)
     }
@@ -315,18 +327,19 @@ export const equal = (str:Token) => (token:Token):Parser<string> => {
  * @param str The string to avoid matching
  * @returns A parser that returns the parsed character, with remaining token starting after it
  */
-export const notEqual = (str:Token) => (token:Token):Parser<string> => {
-    const tobe = token.slice(0,str.length)
-    if(tobe == str) {
+export const notP = <A>(p:ParseF<A>) : ParseF<void> => token => {
+    const p_r = p(token)
+    if(p_r.status == "SUCCESS") {
         return {
-            status: "EQUAL_FAIL",
-            message: `Expect not "{str}" actual "${tobe}"`
+            status: "F",
+            message: ""
         }
     }
+    
     return {
         status: "SUCCESS",
-        value: token[0] as string,
-        slice: token.slice(1)
+        value: undefined,
+        slice: token
     }
 }
 
@@ -385,7 +398,7 @@ export const numberF: ParseF<number> = token => {
  * @returns A wrapped parser that logs information before parsing
  */
 export const plog = <T>(fn:ParseF<T>,prefix="plog=",log_result=false):ParseF<T> => token => {
-    console.log(prefix+token.slice(100))
+    console.log(prefix+token.slice(0,100))
     const r =  fn(token)
     if(log_result) {
         console.log(r)
@@ -1256,7 +1269,7 @@ export function pipeO(...ps:[string,ParseF<any>][]) : ParseF<any> {
  * @param token The input token to parse
  * @returns The result of the parsing operation
  */
-export function parse<T>(p:ParseFunction<T>,token:Token):Parser<T>{
+export function safeParse<T>(p:ParseFunction<T>,token:Token):Parser<T>{
     const f = typeof p == "function" ? p : p.fn()
     return f(token)
 }
@@ -1281,7 +1294,7 @@ export class ParserException extends Error {
  * @returns The parsed value if successful
  * @throws ParserException if parsing fails
  */
-export function simpleParse<T>(p:ParseFunction<T>,token:Token): T {
+export function parse<T>(p:ParseFunction<T>,token:Token): T {
     const f = typeof p == "function" ? p : p.fn()
     const r = f(token)
     if(r.status != "SUCCESS") throw new ParserException(r.status,r.message)
