@@ -188,8 +188,8 @@ test("fail",()=>{
 test("manyTill",()=>{
     const str = "123,8,9,76554,66,0,98,88"
     const f = fmap(manyTill(anyChar,orP<any>(equal(","),endOfInput)),xs=>xs.join(""))
-    const r = parse(many(f),str)
-    expect(r).toEqual([ "123", "8", "9", "76554", "66", "0", "98" ])
+    const r = parse(many(fmap(composeP(f,notP(endOfInput)),a=>a[0])),str)
+    expect(r).toEqual([ "123", "8", "9", "76554", "66", "0", "98","88"])
 })
 test("sepBy",()=>{
     let str = "123,8,9,76554,66,0,98,88"

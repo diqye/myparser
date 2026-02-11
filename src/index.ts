@@ -219,12 +219,12 @@ export const many1 = <T>(p:(token:Token)=>Parser<T>) => (token:Token):Parser<T[]
 export const manyTill = <T,U>(parseF:ParseF<T>,end:ParseF<U>) : ParseF<T[]> => token => {
     const value: T[] = []
     while(true) {
-        if(token.length == 0) {
-            return {
-                status: "END_OF_INPUT",
-                message: "End of input"
-            }
-        }
+        // if(token.length == 0) {
+        //     return {
+        //         status: "END_OF_INPUT",
+        //         message: "End of input"
+        //     }
+        // }
         const end_r = end(token)
         if(end_r.status == "SUCCESS") return {
             status: "SUCCESS",
@@ -322,10 +322,11 @@ export const equal = (str:Token) => (token:Token):Parser<string> => {
         slice: token.slice(str.length)
     }
 }
+
 /**
- * Parses a single character that does NOT match the specified string.
- * @param str The string to avoid matching
- * @returns A parser that returns the parsed character, with remaining token starting after it
+ * Don't cusume any tokens
+ * @param p ParseF
+ * @returns success if p is success or fail
  */
 export const notP = <A>(p:ParseF<A>) : ParseF<void> => token => {
     const p_r = p(token)
