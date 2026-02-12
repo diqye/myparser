@@ -1,5 +1,5 @@
 import {expect, test} from "bun:test"
-import { anyChar,equal, parse,safeParse, composeP, takeUntil, space, spaces, many, type ParseF, orP, fmap, notP, numberF, plog, optional, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF, many1, handBack } from "./index"
+import { anyChar,equal, parse,safeParse, composeP, takeUntil, space, spaces, many, type ParseF, orP, fmap, notP, numberF, plog, optional, bind, pure, endOfInput, breakToEnd, before, fail, manyTill, sepBy, pipeO, pipeP, lookup, selectMinConsumingF, take, Do, regexF, many1, handBack } from "../src/index"
 
 test("space",()=>{
     let p = safeParse(

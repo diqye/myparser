@@ -1,4 +1,5 @@
 
+export * from "./P"
 export type Token = string
 export type ParseError = "END_OF_INPUT" | "SELECT_EMPTY" | "EQUAL_FAIL" | "DOESNT_INDEX_OF" | "NOT_SPACE" | "NOT_NUMBER" | "FAIL" | "F" | "REGEX_F" | "AT_LEAST_ONE_SUCCESSFUL"
 
